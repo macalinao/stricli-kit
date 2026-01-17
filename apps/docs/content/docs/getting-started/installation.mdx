@@ -1,0 +1,65 @@
+---
+title: Installation
+description: Install Stricli-Kit and its packages
+---
+
+# Installation
+
+## Prerequisites
+
+- [Bun](https://bun.sh) >= 1.0.0
+- Node.js >= 22
+
+## Installing Stricli-Kit
+
+Install the main CLI tool:
+
+```bash
+bun add @macalinao/stricli-kit
+```
+
+Or install globally:
+
+```bash
+bun add -g @macalinao/stricli-kit
+```
+
+## Installing Individual Packages
+
+You can also install packages individually based on your needs:
+
+```bash
+# Code generation library
+bun add @macalinao/stricli-codegen
+
+# Core utilities
+bun add @macalinao/stricli-utils
+
+# Config management
+bun add @macalinao/stricli-config
+
+# Scaffolding tool
+bun add @macalinao/progenitor
+```
+
+## Peer Dependencies
+
+All packages require `@stricli/core` as a peer dependency:
+
+```bash
+bun add @stricli/core
+```
+
+## Verifying Installation
+
+Verify the installation by running:
+
+```bash
+stricli-kit --version
+```
+
+Or with bunx:
+
+```bash
+bunx @macalinao/stricli-kit --version
+```

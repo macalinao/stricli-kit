@@ -1,0 +1,23 @@
+import { buildCommand, type CommandContext } from "@stricli/core";
+import { defineRoute, type Route } from "{{utilsPackage}}";
+
+export const route: Route<CommandContext> = defineRoute({
+  meta: {
+    // aliases: [],
+    // hidden: false,
+  },
+  command: buildCommand({
+    loader: () => import("./{{routeName}}.handler.js"),
+    parameters: {
+      flags: {},
+    },
+    docs: {
+      brief: "{{description}}",
+    },
+  }),
+});
+
+// Handler file: {{handlerFileName}}
+// export default async function(this: CommandContext, flags: {}) {
+//   this.process.stdout.write("Hello from {{routeName}}!\n");
+// }

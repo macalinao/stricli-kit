@@ -1,0 +1,7 @@
+{
+  "extends": "@macalinao/tsconfig/tsconfig.bun.json",
+  "compilerOptions": {
+    "isolatedDeclarations": false
+  },
+  "include": ["src"]
+}

@@ -1,0 +1,29 @@
+id: prefer-to-string
+snapshots:
+  ? |
+    console.log(String(verbose));
+  : fixed: |
+      console.log((verbose).toString());
+    labels:
+      - source: String(verbose)
+        style: primary
+        start: 12
+        end: 27
+  ? |
+    const str = String(1 + 2);
+  : fixed: |
+      const str = (1 + 2).toString();
+    labels:
+      - source: String(1 + 2)
+        style: primary
+        start: 12
+        end: 25
+  ? |
+    const str = String(value);
+  : fixed: |
+      const str = (value).toString();
+    labels:
+      - source: String(value)
+        style: primary
+        start: 12
+        end: 25

@@ -1,0 +1,19 @@
+{
+  "pages": [
+    "---Introduction---",
+    "index",
+    "---Getting Started---",
+    "getting-started/installation",
+    "getting-started/quick-start",
+    "---Packages---",
+    "packages/stricli-kit",
+    "packages/codegen",
+    "packages/define",
+    "packages/utils",
+    "packages/config",
+    "packages/progenitor",
+    "---Guides---",
+    "guides/file-based-routing",
+    "guides/command-conventions"
+  ]
+}

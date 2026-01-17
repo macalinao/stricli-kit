@@ -1,0 +1,17 @@
+import type { CommandContext } from "@stricli/core";
+import { defineRouteGroup, type RouteGroupMeta } from "{{utilsPackage}}";
+
+/**
+ * Custom application context - extend CommandContext with your own properties
+ */
+export interface AppContext extends CommandContext {
+  // Add your custom context properties here
+}
+
+export const config: RouteGroupMeta = defineRouteGroup({
+  // aliases: {},
+  // defaultCommand: "index",
+  docs: {
+    brief: "{{description}}",
+  },
+});

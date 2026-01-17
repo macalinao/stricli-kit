@@ -1,0 +1,23 @@
+import type { CommandContext } from "@stricli/core";
+import { defineHandler, defineParameters, defineRoute, type Route } from "{{utilsPackage}}";
+
+const parameters = defineParameters({
+  flags: {
+    // TODO: Define your flags
+  },
+});
+
+const {{handlerName}} = defineHandler(parameters, async function {{handlerName}}(context, flags) {
+  // TODO: Implement {{routeName}} command
+  context.process.stdout.write("Hello from {{routeName}}!\n");
+});
+
+export const route: Route<CommandContext> = defineRoute({
+  handler: {{handlerName}},
+  parameters,
+  docs: {
+    brief: "{{description}}",
+  },
+  // aliases: [],
+  // hidden: false,
+});

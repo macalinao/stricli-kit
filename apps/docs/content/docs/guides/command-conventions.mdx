@@ -1,0 +1,174 @@
+---
+title: Command Conventions
+description: Best practices for writing Stricli commands
+---
+
+# Command Conventions
+
+This guide covers best practices for writing commands with Stricli-Kit.
+
+## Basic Command Structure
+
+```typescript
+import { buildCommand, type CommandContext } from "@stricli/core";
+
+interface Flags {
+  verbose: boolean;
+  output: string | undefined;
+}
+
+export const command = buildCommand({
+  async func(this: CommandContext, flags: Flags, input: string) {
+    // Implementation
+  },
+  parameters: {
+    flags: {
+      verbose: {
+        kind: "boolean",
+        brief: "Enable verbose output",
+        default: false,
+      },
+      output: {
+        kind: "parsed",
+        parse: String,
+        brief: "Output file path",
+        optional: true,
+      },
+    },
+    positional: {
+      kind: "tuple",
+      parameters: [
+        { brief: "Input file", parse: String, placeholder: "input" },
+      ],
+    },
+  },
+  docs: {
+    brief: "Process an input file",
+  },
+});
+```
+
+## Using Output Helpers
+
+```typescript
+import { createOutput } from "@macalinao/stricli-utils";
+
+export const command = buildCommand({
+  func(this, flags) {
+    const output = createOutput(this);
+
+    output.info("Starting...");
+    // Do work
+    output.success("Done!");
+  },
+  // ...
+});
+```
+
+## Flag Types
+
+### Boolean Flags
+
+```typescript
+flags: {
+  verbose: {
+    kind: "boolean",
+    brief: "Enable verbose output",
+    default: false,
+  },
+}
+```
+
+### Parsed Flags
+
+```typescript
+flags: {
+  count: {
+    kind: "parsed",
+    parse: Number,
+    brief: "Number of items",
+    default: "10",  // String that gets parsed
+  },
+}
+```
+
+### Enum Flags
+
+```typescript
+flags: {
+  format: {
+    kind: "enum",
+    values: ["json", "yaml", "text"],
+    brief: "Output format",
+    default: "json",
+  },
+}
+```
+
+### Optional Flags
+
+```typescript
+flags: {
+  config: {
+    kind: "parsed",
+    parse: String,
+    brief: "Config file path",
+    optional: true,  // Type becomes T | undefined
+  },
+}
+```
+
+## Positional Arguments
+
+### Tuple (Fixed Arguments)
+
+```typescript
+positional: {
+  kind: "tuple",
+  parameters: [
+    { brief: "Source file", parse: String, placeholder: "source" },
+    { brief: "Destination", parse: String, placeholder: "dest" },
+  ],
+}
+```
+
+### Variadic (Variable Arguments)
+
+```typescript
+positional: {
+  kind: "array",
+  parameter: {
+    brief: "Files to process",
+    parse: String,
+    placeholder: "files",
+  },
+}
+```
+
+## Error Handling
+
+```typescript
+export const command = buildCommand({
+  async func(this, flags) {
+    const output = createOutput(this);
+
+    try {
+      await doSomething();
+      output.success("Done!");
+    } catch (error) {
+      output.error(`Failed: ${error}`);
+      process.exit(1);
+    }
+  },
+  // ...
+});
+```
+
+## Command Metadata
+
+```typescript
+export const meta = {
+  aliases: ["n", "create"], // Short aliases
+  hidden: false, // Show in help
+};
+```

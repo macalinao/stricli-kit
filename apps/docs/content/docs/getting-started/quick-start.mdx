@@ -1,0 +1,99 @@
+---
+title: Quick Start
+description: Get started with Stricli-Kit in minutes
+---
+
+# Quick Start
+
+This guide will help you create a CLI application with file-based routing.
+
+## 1. Create a Project
+
+Use progenitor to scaffold a new workspace:
+
+```bash
+bunx @macalinao/progenitor workspace init --name my-cli
+cd my-cli
+bun install
+```
+
+## 2. Create a CLI Package
+
+```bash
+bunx @macalinao/progenitor package new my-cli --template command
+```
+
+## 3. Add Commands
+
+Create command files in `packages/my-cli/src/commands/`:
+
+```typescript
+// packages/my-cli/src/commands/hello.ts
+import { buildCommand } from "@stricli/core";
+
+export const command = buildCommand({
+  func(this, flags, name: string) {
+    this.process.stdout.write(`Hello, ${name}!\n`);
+  },
+  parameters: {
+    positional: {
+      kind: "tuple",
+      parameters: [
+        { brief: "Name to greet", parse: String, placeholder: "name" },
+      ],
+    },
+  },
+  docs: {
+    brief: "Say hello to someone",
+  },
+});
+```
+
+## 4. Generate Route Map
+
+```bash
+cd packages/my-cli
+stricli-kit generate
+```
+
+This creates `src/generated/route-map.ts`.
+
+## 5. Create Entry Point
+
+```typescript
+// packages/my-cli/bin/cli.ts
+#!/usr/bin/env bun
+import { run } from "@stricli/core";
+import { app } from "../src/app.js";
+
+await run(app, process.argv.slice(2));
+```
+
+```typescript
+// packages/my-cli/src/app.ts
+import { buildApplication } from "@stricli/core";
+import { routes } from "./generated/route-map.js";
+
+export const app = buildApplication(routes, {
+  name: "my-cli",
+  versionInfo: { currentVersion: "0.1.0" },
+});
+```
+
+## 6. Build and Run
+
+```bash
+bun run build
+./dist/bin/cli.js hello World
+# Output: Hello, World!
+```
+
+## 7. Development Mode
+
+Run the watcher to regenerate routes automatically:
+
+```bash
+stricli-kit dev
+```
+
+Now when you add or modify commands, the route map is regenerated automatically.

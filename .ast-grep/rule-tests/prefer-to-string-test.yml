@@ -1,0 +1,18 @@
+id: prefer-to-string
+valid:
+  - |
+    const str = value.toString();
+  - |
+    const str = (1 + 2).toString();
+  - |
+    const str = obj.foo.toString();
+  - |
+    console.log(verbose.toString());
+
+invalid:
+  - |
+    const str = String(value);
+  - |
+    const str = String(1 + 2);
+  - |
+    console.log(String(verbose));

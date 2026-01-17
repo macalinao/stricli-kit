@@ -1,0 +1,78 @@
+---
+title: "@macalinao/progenitor"
+description: Package and workspace scaffolding tool
+---
+
+# @macalinao/progenitor
+
+Scaffold packages and workspaces with @macalinao configs.
+
+## Installation
+
+```bash
+bun add -g @macalinao/progenitor
+```
+
+## Commands
+
+### `progenitor package new <name>`
+
+Create a new package with proper configuration.
+
+```bash
+progenitor package new my-package
+progenitor package new my-cli --template command
+progenitor package new utils --description "Shared utilities"
+```
+
+**Flags:**
+
+- `--template` - Package template: `base`, `command`, `library`
+- `--dir` - Output directory
+- `--scope` - npm scope (default: `@macalinao`)
+- `--description` - Package description
+
+**Generated files:**
+
+- `package.json` - Configured with exports
+- `tsconfig.json` - Extends @macalinao/tsconfig
+- `eslint.config.js` - Uses @macalinao/eslint-config
+- `README.md` - Documentation template
+- `src/index.ts` - Entry point
+
+### `progenitor workspace init`
+
+Initialize a new Bun workspace monorepo.
+
+```bash
+progenitor workspace init
+progenitor workspace init --name my-project --scope @mycompany
+progenitor workspace init --no-devenv
+```
+
+**Flags:**
+
+- `--name` - Workspace name
+- `--scope` - Default npm scope
+- `--no-turbo` - Skip turborepo
+- `--no-husky` - Skip husky/lint-staged
+- `--no-devenv` - Skip devenv.nix
+
+**Generated structure:**
+
+- `package.json` - Bun workspaces config
+- `biome.jsonc` - Biome config
+- `eslint.config.js` - ESLint config
+- `tsconfig.json` - TypeScript config
+- `turbo.json` - Turborepo config
+- `.husky/pre-commit` - Git hooks
+- `.gitignore` - Standard ignores
+- `devenv.nix` - Nix dev environment
+- `devenv.yaml` - Devenv inputs
+- `CLAUDE.md` - AI assistant docs
+- `packages/` - Packages directory
+- `apps/` - Apps directory
+
+## Claude Code Integration
+
+Progenitor includes Claude Code skills for AI-assisted scaffolding. Skills are in `.claude/skills/`.

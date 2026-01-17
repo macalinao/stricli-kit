@@ -1,0 +1,81 @@
+---
+title: "@macalinao/stricli-utils"
+description: Shared utilities for Stricli CLI development
+---
+
+# @macalinao/stricli-utils
+
+Shared utilities and helpers for building Stricli CLIs.
+
+## Installation
+
+```bash
+bun add @macalinao/stricli-utils
+```
+
+## Features
+
+### Output Helpers
+
+Formatted console output with colors:
+
+```typescript
+import { createOutput } from "@macalinao/stricli-utils";
+
+export const command = buildCommand({
+  func(this, flags) {
+    const output = createOutput(this);
+
+    output.success("Operation completed!");
+    output.error("Something went wrong");
+    output.warn("Proceed with caution");
+    output.info("Processing...");
+    output.json({ key: "value" });
+    output.table([{ name: "foo", value: 1 }]);
+  },
+});
+```
+
+### Parsers
+
+Common argument parsers:
+
+```typescript
+import { pathParser, choiceParser, jsonParser } from "@macalinao/stricli-utils";
+
+// Path parser with validation
+const filePath = pathParser({ mustExist: true, type: "file" });
+
+// Choice parser for enum values
+const format = choiceParser(["json", "yaml", "toml"] as const);
+
+// JSON parser
+const config = jsonParser<{ key: string }>();
+```
+
+### Extended Context
+
+Enhanced command context:
+
+```typescript
+import { extendContext } from "@macalinao/stricli-utils";
+
+export const command = buildCommand({
+  func(this, flags) {
+    const ctx = extendContext(this);
+
+    ctx.output.success("Done!");
+    console.log(ctx.cwd); // Current working directory
+    console.log(ctx.env); // Environment variables
+  },
+});
+```
+
+## Type Helpers
+
+```typescript
+import type { CommandFlags, CommandArgs } from "@macalinao/stricli-utils";
+
+type MyFlags = CommandFlags<typeof myCommand>;
+type MyArgs = CommandArgs<typeof myCommand>;
+```

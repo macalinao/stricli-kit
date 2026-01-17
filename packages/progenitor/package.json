@@ -1,0 +1,39 @@
+{
+  "name": "@macalinao/progenitor",
+  "version": "0.1.0",
+  "type": "module",
+  "sideEffects": false,
+  "bin": {
+    "progenitor": "./dist/bin/progenitor.js"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "clean": "rm -rf dist",
+    "lint": "bunx eslint .",
+    "test": "bun test || true",
+    "generate": "stricli-kit generate",
+    "dev": "stricli-kit dev"
+  },
+  "dependencies": {
+    "@macalinao/stricli-kit": "workspace:^",
+    "@stricli/core": "catalog:"
+  },
+  "devDependencies": {
+    "@macalinao/tsconfig": "catalog:",
+    "@types/bun": "catalog:",
+    "@types/node": "^22.0.0",
+    "typescript": "catalog:"
+  },
+  "publishConfig": {
+    "registry": "https://registry.npmjs.org/",
+    "access": "public"
+  }
+}

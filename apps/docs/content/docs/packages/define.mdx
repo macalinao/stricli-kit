@@ -1,0 +1,309 @@
+---
+title: "@macalinao/stricli-define"
+description: Type-safe command definitions for Stricli with full type inference
+---
+
+# @macalinao/stricli-define
+
+A standalone library for building Stricli CLIs with improved developer experience. It provides type-safe helpers that let you define parameters separately from handlers while preserving full type inference.
+
+**This package can be used independently of stricli-kit** - it's useful for any Stricli project that wants better type inference and a cleaner API.
+
+## Installation
+
+```bash
+bun add @macalinao/stricli-define @stricli/core
+```
+
+## Why stricli-define?
+
+Stricli's default API uses `this` binding and inline definitions:
+
+```typescript
+// Traditional Stricli approach
+const command = buildCommand({
+  func(this, flags, ...args) {
+    // `this` is the context
+    // flags and args types are inferred but tied to inline definition
+  },
+  parameters: {
+    flags: {
+      force: { kind: "boolean", brief: "Force" },
+    },
+  },
+  docs: { brief: "Do something" },
+});
+```
+
+With stricli-define, you can separate concerns and get better type inference:
+
+```typescript
+// With stricli-define
+const params = defineParameters({
+  flags: {
+    force: { kind: "boolean", brief: "Force", default: false },
+  },
+});
+
+const handler = defineHandler<typeof params>((ctx, { flags }) => {
+  // flags.force is typed as boolean
+  if (flags.force) {
+    // ...
+  }
+});
+
+const route = defineRoute({
+  handler,
+  params,
+  docs: { brief: "Do something" },
+});
+```
+
+## API Reference
+
+### defineParameters
+
+Defines command parameters with full type preservation. Use this to define parameters separately, then reference the type in your handler.
+
+```typescript
+import { defineParameters } from "@macalinao/stricli-define";
+
+const params = defineParameters({
+  flags: {
+    // Boolean flag with default
+    verbose: { kind: "boolean", brief: "Verbose output", default: false },
+
+    // Parsed flag (required)
+    port: { kind: "parsed", parse: Number, brief: "Port number" },
+
+    // Parsed flag with default
+    host: {
+      kind: "parsed",
+      parse: String,
+      brief: "Host",
+      default: "localhost",
+    },
+
+    // Enum flag
+    format: {
+      kind: "enum",
+      values: ["json", "yaml", "toml"] as const,
+      brief: "Output format",
+    },
+
+    // Counter flag (-v -v -v)
+    v: { kind: "counter", brief: "Verbosity level" },
+
+    // Optional flag
+    config: {
+      kind: "parsed",
+      parse: String,
+      brief: "Config file",
+      optional: true,
+    },
+
+    // Variadic flag (--tag foo --tag bar)
+    tag: { kind: "parsed", parse: String, brief: "Tags", variadic: true },
+  },
+
+  // Positional arguments (tuple)
+  positional: {
+    kind: "tuple",
+    parameters: [
+      { brief: "Source file", parse: String, placeholder: "source" },
+      {
+        brief: "Destination",
+        parse: String,
+        placeholder: "dest",
+        optional: true,
+      },
+    ],
+  },
+
+  // Flag aliases
+  aliases: {
+    f: "force",
+    p: "port",
+  },
+});
+```
+
+### defineHandler
+
+Creates a typed handler function. Use `typeof params` to get full type inference for flags and arguments.
+
+```typescript
+import { defineHandler, defineParameters } from "@macalinao/stricli-define";
+
+const params = defineParameters({
+  flags: {
+    name: { kind: "parsed", parse: String, brief: "Name" },
+    count: { kind: "parsed", parse: Number, brief: "Count", default: "1" },
+  },
+  positional: {
+    kind: "tuple",
+    parameters: [{ brief: "File", parse: String, placeholder: "file" }],
+  },
+});
+
+// Handler with full type inference
+const handler = defineHandler<typeof params>((ctx, { flags, args }) => {
+  // flags.name is string
+  // flags.count is number
+  // args is [string]
+  const [file] = args;
+
+  ctx.process.stdout.write(`Processing ${file} for ${flags.name}\n`);
+});
+
+// Async handlers are also supported
+const asyncHandler = defineHandler<typeof params>(async (ctx, { flags }) => {
+  await someAsyncOperation(flags.name);
+});
+```
+
+### defineRoute
+
+Creates a route (command) that can be used in a route map. Returns both the `command` for Stricli and the original configuration.
+
+```typescript
+import {
+  defineRoute,
+  defineHandler,
+  defineParameters,
+} from "@macalinao/stricli-define";
+
+const params = defineParameters({
+  flags: {
+    force: { kind: "boolean", brief: "Force", default: false },
+  },
+});
+
+const route = defineRoute({
+  handler: defineHandler<typeof params>((ctx, { flags }) => {
+    // Implementation
+  }),
+  params,
+  docs: {
+    brief: "Short description",
+    fullDescription: "Longer description shown in help",
+  },
+  aliases: ["f", "frc"], // Command aliases
+  hidden: false, // Whether to hide from help
+});
+
+// Use route.command in your route map
+const routeMap = buildRouteMap({
+  routes: { force: route.command },
+  docs: { brief: "My CLI" },
+});
+```
+
+### defineRoute with lazy loading
+
+For large CLIs, you can lazy-load handlers to improve startup time:
+
+```typescript
+const route = defineRoute({
+  loader: async () => {
+    // Handler is only loaded when command is invoked
+    const { handler } = await import("./heavy-handler.js");
+    return handler;
+  },
+  params,
+  docs: { brief: "Heavy command" },
+});
+```
+
+### defineRouteGroup
+
+Creates configuration for a route group (nested commands):
+
+```typescript
+import { defineRouteGroup } from "@macalinao/stricli-define";
+import { buildRouteMap } from "@stricli/core";
+
+const configGroup = defineRouteGroup({
+  docs: { brief: "Configuration commands" },
+  aliases: {
+    g: "get",
+    s: "set",
+  },
+});
+
+const configRouteMap = buildRouteMap({
+  routes: {
+    get: getCommand,
+    set: setCommand,
+  },
+  ...configGroup,
+});
+```
+
+### defineCommand
+
+Lower-level API that directly creates a Stricli command. Use this when you need more control or don't need the route abstraction.
+
+```typescript
+import { defineCommand } from "@macalinao/stricli-define";
+
+const command = defineCommand<{ force: boolean }, [string]>({
+  handler: (ctx, { flags, args }) => {
+    const [file] = args;
+    if (flags.force) {
+      // ...
+    }
+  },
+  parameters: {
+    flags: {
+      force: { kind: "boolean", brief: "Force", default: false },
+    },
+    positional: {
+      kind: "tuple",
+      parameters: [{ brief: "File", parse: String, placeholder: "file" }],
+    },
+  },
+  docs: { brief: "Process a file" },
+});
+```
+
+## Custom Context
+
+You can use a custom context type for dependency injection:
+
+```typescript
+import type { CommandContext } from "@stricli/core";
+
+interface AppContext extends CommandContext {
+  logger: { info: (msg: string) => void };
+  config: { get: (key: string) => string | undefined };
+}
+
+const params = defineParameters({
+  flags: {
+    key: { kind: "parsed", parse: String, brief: "Config key" },
+  },
+});
+
+// Pass context type as second generic
+const handler = defineHandler<typeof params, AppContext>((ctx, { flags }) => {
+  const value = ctx.config.get(flags.key);
+  ctx.logger.info(`${flags.key} = ${value ?? "(not set)"}`);
+});
+```
+
+## Type Utilities
+
+The package exports several type utilities for advanced use cases:
+
+```typescript
+import type {
+  ExtractFlags, // Extract flags type from parameters
+  ExtractArgs, // Extract args type from parameters
+  CommandParams, // { flags: TFlags, args: TArgs }
+  CommandHandler, // Handler function type
+} from "@macalinao/stricli-define";
+
+type MyFlags = ExtractFlags<typeof params>; // { force: boolean, name: string }
+type MyArgs = ExtractArgs<typeof params>; // [string, string | undefined]
+```

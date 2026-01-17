@@ -1,0 +1,81 @@
+---
+title: "@macalinao/stricli-config"
+description: YAML config and environment variable management
+---
+
+# @macalinao/stricli-config
+
+Configuration file management with YAML and environment variable support.
+
+## Installation
+
+```bash
+bun add @macalinao/stricli-config
+```
+
+## Usage
+
+### Config Manager
+
+```typescript
+import { createConfigManager } from "@macalinao/stricli-config";
+import { z } from "zod";
+
+const schema = z.object({
+  apiUrl: z.string().default("https://api.example.com"),
+  debug: z.boolean().default(false),
+  timeout: z.number().default(5000),
+});
+
+type Config = z.infer<typeof schema>;
+
+const config = createConfigManager<Config>({
+  path: "./config.yaml",
+  schema,
+  envPrefix: "MY_CLI_",
+});
+
+// Load config (merges file + env vars + defaults)
+const settings = await config.load();
+
+// Save config
+await config.save({
+  apiUrl: "https://new-api.example.com",
+  debug: true,
+  timeout: 10000,
+});
+```
+
+### YAML File Operations
+
+```typescript
+import { readYamlFile, writeYamlFile } from "@macalinao/stricli-config";
+
+// Read YAML
+const data = await readYamlFile<MyType>("config.yaml");
+
+// Write YAML
+await writeYamlFile("config.yaml", { key: "value" });
+```
+
+### Environment Variable Overrides
+
+```typescript
+import { resolveEnvOverrides } from "@macalinao/stricli-config";
+
+const config = resolveEnvOverrides(
+  { apiUrl: "default", debug: false },
+  "MY_CLI_",
+);
+// MY_CLI_API_URL and MY_CLI_DEBUG will override values
+```
+
+## Environment Variable Naming
+
+Config keys are converted to SCREAMING_SNAKE_CASE with the prefix:
+
+| Config Key   | Environment Variable |
+| ------------ | -------------------- |
+| `apiUrl`     | `MY_CLI_API_URL`     |
+| `debug`      | `MY_CLI_DEBUG`       |
+| `maxRetries` | `MY_CLI_MAX_RETRIES` |

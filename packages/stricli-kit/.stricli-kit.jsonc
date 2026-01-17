@@ -1,0 +1,4 @@
+{
+  // Use stricli-utils directly since stricli-kit can't depend on itself
+  "utilsPackage": "@macalinao/stricli-utils"
+}

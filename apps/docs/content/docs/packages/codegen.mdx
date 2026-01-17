@@ -1,0 +1,75 @@
+---
+title: "@macalinao/stricli-codegen"
+description: Route map code generation library
+---
+
+# @macalinao/stricli-codegen
+
+Library for generating Stricli route maps from file-based command structures.
+
+## Installation
+
+```bash
+bun add @macalinao/stricli-codegen
+```
+
+## Usage
+
+### One-time Generation
+
+```typescript
+import { generateRouteMap } from "@macalinao/stricli-codegen";
+
+await generateRouteMap({
+  commandsDir: "src/commands",
+  outputPath: "src/generated/route-map.ts",
+});
+```
+
+### Watch Mode
+
+```typescript
+import { createRouteWatcher } from "@macalinao/stricli-codegen";
+
+const watcher = createRouteWatcher({
+  commandsDir: "src/commands",
+  outputPath: "src/generated/route-map.ts",
+  onRegenerate: (changedFiles) => {
+    console.log(`Regenerated (${changedFiles.length} files changed)`);
+  },
+});
+
+await watcher.start();
+```
+
+## API Reference
+
+### `generateRouteMap(options)`
+
+Generate a route map from a commands directory.
+
+**Options:**
+
+- `commandsDir` - Path to commands directory
+- `outputPath` - Path to output file
+- `importPrefix` - Import path prefix (default: `"../commands"`)
+
+**Returns:** `Promise<GeneratedRouteMap>`
+
+### `createRouteWatcher(options)`
+
+Create a file watcher that regenerates on changes.
+
+**Options:**
+
+- All `generateRouteMap` options
+- `onRegenerate` - Callback when regeneration occurs
+- `debounceMs` - Debounce delay (default: `100`)
+
+**Returns:** `RouteWatcher`
+
+### `scanCommandsDirectory(commandsDir)`
+
+Scan a directory for command files.
+
+**Returns:** `ScannedRoute[]`

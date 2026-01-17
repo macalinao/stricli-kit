@@ -1,0 +1,8 @@
+id: prefer-to-string
+language: typescript
+severity: warning
+message: Use $ARG.toString() instead of String($ARG)
+note: Prefer calling .toString() method directly for clarity and consistency
+rule:
+  pattern: String($ARG)
+fix: ($ARG).toString()

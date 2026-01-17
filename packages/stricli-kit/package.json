@@ -1,0 +1,41 @@
+{
+  "name": "@macalinao/stricli-kit",
+  "version": "0.1.0",
+  "type": "module",
+  "sideEffects": false,
+  "bin": {
+    "stricli-kit": "./dist/bin/stricli-kit.js"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "clean": "rm -rf dist",
+    "lint": "bunx eslint .",
+    "test": "bun test || true",
+    "generate": "bun run src/scripts/generate.ts",
+    "dev": "bun run src/scripts/dev.ts"
+  },
+  "dependencies": {
+    "@macalinao/stricli-codegen": "workspace:^",
+    "@macalinao/stricli-config": "workspace:^",
+    "@macalinao/stricli-utils": "workspace:^",
+    "@stricli/core": "catalog:"
+  },
+  "devDependencies": {
+    "@macalinao/tsconfig": "catalog:",
+    "@types/node": "^22.0.0",
+    "@types/bun": "catalog:",
+    "typescript": "catalog:"
+  },
+  "publishConfig": {
+    "registry": "https://registry.npmjs.org/",
+    "access": "public"
+  }
+}

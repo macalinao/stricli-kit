@@ -1,0 +1,131 @@
+---
+title: Introduction
+description: A toolkit for building file-based CLIs with Stricli
+---
+
+# Stricli-Kit
+
+Stricli-Kit is a toolkit for building file-based CLIs with [Stricli](https://github.com/bloomberg/stricli), featuring codegen capabilities similar to TanStack Router.
+
+Instead of manually wiring up commands, you organize them as files in a directory structure. Stricli-Kit generates the route map for you.
+
+## Why Stricli-Kit?
+
+**Traditional CLI setup** requires manually registering each command:
+
+```typescript
+// Manually import and register every command
+import { greet } from "./commands/greet";
+import { configGet } from "./commands/config/get";
+import { configSet } from "./commands/config/set";
+import { dbMigrate } from "./commands/db/migrate";
+// ... grows with every new command
+
+const routeMap = buildRouteMap({
+  routes: {
+    greet,
+    config: buildRouteMap({
+      routes: { get: configGet, set: configSet },
+    }),
+    db: buildRouteMap({
+      routes: { migrate: dbMigrate },
+    }),
+  },
+});
+```
+
+**With Stricli-Kit**, your file structure _is_ your route map:
+
+```
+src/commands/
+├── greet.ts          → cli greet
+├── config/
+│   ├── get.ts        → cli config get
+│   └── set.ts        → cli config set
+└── db/
+    └── migrate.ts    → cli db migrate
+```
+
+Run `stricli-kit generate` and the route map is created automatically.
+
+## Features
+
+- **File-Based Routing** - Organize commands in a directory structure that maps directly to CLI routes
+- **Automatic Code Generation** - Generate route maps from your command files
+- **Watch Mode** - Regenerate routes automatically during development
+- **Type Safety** - Full TypeScript support with type inference for flags and arguments
+- **Modular Packages** - Use only what you need
+
+## Packages
+
+| Package                                              | Description                                |
+| ---------------------------------------------------- | ------------------------------------------ |
+| [@macalinao/stricli-kit](/docs/packages/stricli-kit) | Main CLI tool for code generation          |
+| [@macalinao/stricli-codegen](/docs/packages/codegen) | Route map code generation library          |
+| [@macalinao/stricli-define](/docs/packages/define)   | Type-safe command definitions (standalone) |
+| [@macalinao/stricli-utils](/docs/packages/utils)     | Shared utilities for CLI development       |
+| [@macalinao/stricli-config](/docs/packages/config)   | YAML config and env var management         |
+| [@macalinao/progenitor](/docs/packages/progenitor)   | Package and workspace scaffolding          |
+
+## Quick Start
+
+```bash
+# Install dependencies
+bun add @macalinao/stricli-kit @macalinao/stricli-utils @stricli/core
+
+# Initialize a new CLI project
+stricli-kit init
+
+# Generate route map
+stricli-kit generate
+
+# Watch mode for development
+stricli-kit dev
+```
+
+## Command Definition
+
+Each command file exports a `command` using the type-safe helpers:
+
+```typescript
+// src/commands/greet.ts
+import {
+  defineRoute,
+  defineHandler,
+  defineParameters,
+} from "@macalinao/stricli-utils";
+
+const params = defineParameters({
+  flags: {
+    loud: { kind: "boolean", brief: "Shout the greeting", default: false },
+  },
+  positional: {
+    kind: "tuple",
+    parameters: [
+      { brief: "Name to greet", parse: String, placeholder: "name" },
+    ],
+  },
+});
+
+export const command = defineRoute({
+  handler: defineHandler<typeof params>((ctx, { flags, args }) => {
+    const [name] = args;
+    const greeting = `Hello, ${name}!`;
+    ctx.process.stdout.write(flags.loud ? greeting.toUpperCase() : greeting);
+    ctx.process.stdout.write("\n");
+  }),
+  params,
+  docs: { brief: "Greet someone" },
+}).command;
+
+export const meta = {
+  aliases: ["g", "hello"],
+};
+```
+
+## Next Steps
+
+- [Installation](/docs/getting-started/installation) - Set up your environment
+- [Quick Start](/docs/getting-started/quick-start) - Build your first CLI
+- [File-Based Routing](/docs/guides/file-based-routing) - Learn the conventions
+- [Command Conventions](/docs/guides/command-conventions) - Flags, arguments, and more

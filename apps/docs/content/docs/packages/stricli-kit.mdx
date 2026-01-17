@@ -1,0 +1,72 @@
+---
+title: "@macalinao/stricli-kit"
+description: Main CLI tool for Stricli-Kit
+---
+
+# @macalinao/stricli-kit
+
+The main CLI tool for generating route maps and managing Stricli CLI projects.
+
+## Installation
+
+```bash
+bun add @macalinao/stricli-kit
+```
+
+## Commands
+
+### `stricli-kit generate`
+
+Generate a route map from your commands directory.
+
+```bash
+stricli-kit generate
+stricli-kit generate --commandsDir src/commands --output src/generated/route-map.ts
+```
+
+**Flags:**
+
+- `--commandsDir` - Commands directory (default: `src/commands`)
+- `--output` - Output file path (default: `src/generated/route-map.ts`)
+
+### `stricli-kit dev`
+
+Watch mode that regenerates the route map on file changes.
+
+```bash
+stricli-kit dev
+stricli-kit dev --commandsDir src/commands --output src/generated/route-map.ts
+```
+
+### `stricli-kit new`
+
+Create a new package in the monorepo.
+
+```bash
+stricli-kit new my-package
+stricli-kit new my-cli --template command
+```
+
+**Flags:**
+
+- `--template` - Package template: `base`, `command`, `library` (default: `library`)
+- `--dir` - Output directory (default: `packages/<name>`)
+- `--scope` - npm scope (default: `@macalinao`)
+
+### `stricli-kit test`
+
+Run tests via bun test.
+
+```bash
+stricli-kit test
+stricli-kit test --watch
+```
+
+### `stricli-kit lint`
+
+Run biome and eslint.
+
+```bash
+stricli-kit lint
+stricli-kit lint --fix
+```

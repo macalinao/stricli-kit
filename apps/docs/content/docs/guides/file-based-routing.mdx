@@ -1,0 +1,115 @@
+---
+title: File-Based Routing
+description: How file-based routing works in Stricli-Kit
+---
+
+# File-Based Routing
+
+Stricli-Kit uses a file-based routing convention similar to TanStack Router, where your file structure maps directly to CLI commands.
+
+## Directory Structure
+
+```
+src/commands/
+├── index.ts        # Default command (cli)
+├── new.ts          # cli new
+├── test.ts         # cli test
+├── config/
+│   ├── get.ts      # cli config get
+│   ├── set.ts      # cli config set
+│   ├── list.ts     # cli config list
+│   └── __route.ts  # Route config for config group
+└── __root.ts       # Root route configuration
+```
+
+## File Conventions
+
+| File         | Purpose                        |
+| ------------ | ------------------------------ |
+| `*.ts`       | Command file                   |
+| `index.ts`   | Default command for directory  |
+| `__root.ts`  | Root route map configuration   |
+| `__route.ts` | Nested route map configuration |
+
+## Command Files
+
+Each command file must export a `command`:
+
+```typescript
+import { buildCommand } from "@stricli/core";
+
+export const command = buildCommand({
+  func(this, flags, ...args) {
+    // Implementation
+  },
+  parameters: {
+    flags: {},
+    positional: { kind: "tuple", parameters: [] },
+  },
+  docs: {
+    brief: "Command description",
+  },
+});
+```
+
+Optionally export `meta` for aliases and visibility:
+
+```typescript
+export const meta = {
+  aliases: ["n", "create"],
+  hidden: false,
+};
+```
+
+## Route Configuration
+
+### Root Config (`__root.ts`)
+
+```typescript
+export const config = {
+  docs: {
+    brief: "My CLI application",
+  },
+  aliases: {
+    n: "new",
+  },
+};
+```
+
+### Nested Config (`__route.ts`)
+
+```typescript
+export const config = {
+  docs: {
+    brief: "Configuration commands",
+  },
+  defaultCommand: "list",
+};
+```
+
+## Generated Output
+
+The codegen produces a route map like:
+
+```typescript
+import { buildRouteMap } from "@stricli/core";
+import { command as newCommand } from "../commands/new.js";
+import { command as configGetCommand } from "../commands/config/get.js";
+
+const configRoutes = buildRouteMap({
+  routes: {
+    get: configGetCommand,
+    set: configSetCommand,
+    list: configListCommand,
+  },
+  docs: { brief: "Configuration commands" },
+});
+
+export const routes = buildRouteMap({
+  routes: {
+    new: newCommand,
+    config: configRoutes,
+  },
+  aliases: { n: "new" },
+});
+```

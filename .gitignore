@@ -37,7 +37,6 @@ package-lock.json
 
 # Generated
 *.generated.*
-src/generated/
 
 # Fumadocs
 apps/docs/.source/

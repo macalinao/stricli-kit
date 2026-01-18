@@ -8,9 +8,14 @@ on:
 jobs:
   version:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
     steps:
       - name: Checkout
         uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
 
       - name: Cache turbo build setup
         uses: actions/cache@v5

@@ -134,15 +134,11 @@ describe("generateRootTemplate", () => {
   test("generates root template", () => {
     const template = generateRootTemplate("my-cli");
 
-    expect(template).toContain(
-      'import type { CommandContext } from "@stricli/core"',
-    );
-    expect(template).toContain("defineRouteGroup");
-    expect(template).toContain(
-      "export interface AppContext extends CommandContext",
-    );
-    expect(template).toContain("export const config");
+    expect(template).toContain("defineRoot");
+    expect(template).toContain('from "@macalinao/stricli-kit"');
+    expect(template).toContain("export const root = defineRoot({");
     expect(template).toContain('brief: "My Cli - CLI application"');
+    expect(template).toContain("export type AppContext = typeof root.Context");
   });
 
   test("uses custom utilsPackage", () => {

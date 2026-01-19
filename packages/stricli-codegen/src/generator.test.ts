@@ -285,12 +285,16 @@ describe("generateAppFileContent", () => {
 
     expect(content).toContain("AUTO-GENERATED");
     expect(content).toContain(
-      'import { createAppContext } from "@macalinao/stricli-kit"',
+      'import { createAppContextAsync } from "@macalinao/stricli-kit"',
     );
-    expect(content).toContain('name: appConfig.name ?? "@macalinao/test-cli"');
-    expect(content).toContain('currentVersion: appConfig.version ?? "1.0.0"');
+    expect(content).toContain(
+      'name: root.appConfig.name ?? "@macalinao/test-cli"',
+    );
+    expect(content).toContain(
+      'currentVersion: root.appConfig.version ?? "1.0.0"',
+    );
     expect(content).toContain("export const app");
-    expect(content).toContain("export const context");
+    expect(content).toContain("export const createContext");
   });
 });
 
@@ -331,7 +335,7 @@ describe("generateRouteMapFileContent", () => {
       'import type { AppContext } from "../commands/__root.js"',
     );
     expect(content).toContain("export const routes: RouteMap<AppContext>");
-    expect(content).toContain("...rootConfig");
+    expect(content).toContain("...root.routeConfig");
   });
 });
 

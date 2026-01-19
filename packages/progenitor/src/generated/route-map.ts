@@ -5,7 +5,7 @@ import type { RouteMap } from "@stricli/core";
 import type { AppContext } from "../commands/__root.js";
 
 import { buildRouteMap } from "@stricli/core";
-import { config as rootConfig } from "../commands/__root.js";
+import { root } from "../commands/__root.js";
 
 import { config as package_config } from "../commands/package/__route.js";
 import { route as package_newRoute } from "../commands/package/new.js";
@@ -31,5 +31,5 @@ export const routes: RouteMap<AppContext> = buildRouteMap({
       ...workspace_config,
     }),
   },
-  ...rootConfig,
+  ...root.routeConfig,
 });

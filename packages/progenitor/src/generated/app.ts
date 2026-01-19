@@ -4,17 +4,18 @@
 import type { Application } from "@stricli/core";
 import type { AppContext } from "../commands/__root.js";
 
-import { createAppContext } from "@macalinao/stricli-kit";
+import { createAppContextAsync } from "@macalinao/stricli-kit";
 import { buildApplication } from "@stricli/core";
 
-import { appConfig } from "../commands/__root.js";
+import { root } from "../commands/__root.js";
 import { routes } from "./route-map.js";
 
 export const app: Application<AppContext> = buildApplication(routes, {
-  name: appConfig.name ?? "@macalinao/progenitor",
+  name: root.appConfig.name ?? "@macalinao/progenitor",
   versionInfo: {
-    currentVersion: appConfig.version ?? "0.1.0",
+    currentVersion: root.appConfig.version ?? "0.1.0",
   },
 });
 
-export const context = createAppContext<AppContext>(appConfig.context);
+export const createContext = () =>
+  createAppContextAsync<AppContext>(root.appConfig.context);

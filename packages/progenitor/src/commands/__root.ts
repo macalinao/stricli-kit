@@ -1,7 +1,6 @@
-import type { CommandContext } from "@stricli/core";
 import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { defineAppConfig, defineRouteGroup } from "@macalinao/stricli-kit";
+import { defineRoot } from "@macalinao/stricli-kit";
 
 /**
  * Workspace configuration from root package.json
@@ -13,16 +12,6 @@ export interface WorkspaceConfig {
   packages: string[];
   /** Catalog of shared dependencies with versions */
   catalog: Record<string, string>;
-}
-
-/**
- * Custom application context for progenitor with workspace info.
- */
-export interface AppContext extends CommandContext {
-  /** Root workspace configuration */
-  workspace: WorkspaceConfig;
-  /** Current working directory */
-  cwd: string;
 }
 
 interface PackageJson {
@@ -56,29 +45,24 @@ function loadWorkspaceConfig(cwd: string): WorkspaceConfig {
 }
 
 /**
- * Application configuration for progenitor CLI.
- * Context builder and optional name/version overrides.
+ * Create context for progenitor commands.
+ * Loads workspace configuration from the current working directory.
  */
-export const appConfig = defineAppConfig<AppContext>({
-  // name and version default to package.json values from codegen
-  context: () => {
-    const cwd = process.cwd();
-    return {
-      workspace: loadWorkspaceConfig(cwd),
-      cwd,
-    };
-  },
-});
+const createContext = () => {
+  const cwd = process.cwd();
+  return {
+    workspace: loadWorkspaceConfig(cwd),
+    cwd,
+  };
+};
 
-/**
- * Route group configuration for the root.
- */
-export const config = defineRouteGroup({
+export const root = defineRoot({
+  brief: "Progenitor - scaffold packages and workspaces",
+  createContext,
   aliases: {
     pkg: "package",
     ws: "workspace",
   },
-  docs: {
-    brief: "Progenitor - scaffold packages and workspaces",
-  },
 });
+
+export type AppContext = typeof root.Context;

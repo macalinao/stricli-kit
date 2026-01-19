@@ -16,6 +16,7 @@ export {
   type AppConfig,
   type AppDynamicContext,
   createAppContext,
+  createAppContextAsync,
   defineAppConfig,
   extendContext,
 } from "./context.js";
@@ -29,6 +30,12 @@ export {
   zodParser,
   zodStringParser,
 } from "./parsers/index.js";
+export {
+  type DefineRootOptions,
+  defineRoot,
+  type RootConfig,
+  type RootRouteConfig,
+} from "./root.js";
 export {
   type CommandDocs,
   type DefineRouteArgs,

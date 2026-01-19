@@ -299,20 +299,20 @@ export function generateAppFileContent(
     'import type { Application } from "@stricli/core";',
     `import type { AppContext } from "${rootConfigPath}";`,
     "",
-    `import { createAppContext } from "${utilsPackage}";`,
+    `import { createAppContextAsync } from "${utilsPackage}";`,
     'import { buildApplication } from "@stricli/core";',
     "",
-    `import { appConfig } from "${rootConfigPath}";`,
+    `import { root } from "${rootConfigPath}";`,
     'import { routes } from "./route-map.js";',
     "",
     "export const app: Application<AppContext> = buildApplication(routes, {",
-    `  name: appConfig.name ?? "${name}",`,
+    `  name: root.appConfig.name ?? "${name}",`,
     "  versionInfo: {",
-    `    currentVersion: appConfig.version ?? "${version}",`,
+    `    currentVersion: root.appConfig.version ?? "${version}",`,
     "  },",
     "});",
     "",
-    "export const context = createAppContext<AppContext>(appConfig.context);",
+    "export const createContext = () => createAppContextAsync<AppContext>(root.appConfig.context);",
     "",
   ];
 
@@ -335,7 +335,7 @@ function generateRouteMapHeader(
       `import type { AppContext } from "${rootConfigPath}";`,
       "",
       'import { buildRouteMap } from "@stricli/core";',
-      `import { config as rootConfig } from "${rootConfigPath}";`,
+      `import { root } from "${rootConfigPath}";`,
     );
   } else {
     lines.push(
@@ -364,7 +364,7 @@ function generateRouteMapExport(
   ];
 
   if (hasRoot) {
-    lines.push("  ...rootConfig,");
+    lines.push("  ...root.routeConfig,");
   }
 
   lines.push("});", "");

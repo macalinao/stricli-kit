@@ -28,7 +28,7 @@ export interface AppDynamicContext<T extends CommandContext>
 }
 
 /**
- * Create a dynamic application context for Stricli.
+ * Create a dynamic application context for Stricli (sync version).
  * Simplifies the boilerplate of creating a context with the forCommand builder.
  *
  * @example
@@ -58,6 +58,40 @@ export function createAppContext<T extends CommandContext>(
 }
 
 /**
+ * Create a dynamic application context for Stricli (async version).
+ * Use this when your context needs to perform async operations like reading config files.
+ *
+ * @example
+ * ```typescript
+ * export const createContext = () => createAppContextAsync<AppContext>(async () => ({
+ *   config: await loadConfig(),
+ *   cwd: process.cwd(),
+ * }));
+ *
+ * // In cli.ts:
+ * const context = await createContext();
+ * await run(app, process.argv.slice(2), context);
+ * ```
+ */
+export async function createAppContextAsync<T extends CommandContext>(
+  builder: () => Omit<T, "process"> | Promise<Omit<T, "process">>,
+): Promise<AppDynamicContext<T>> {
+  const stricliProcess = {
+    stdout: process.stdout,
+    stderr: process.stderr,
+  };
+
+  // Await the builder result (handles both sync and async)
+  const contextData = await builder();
+
+  return {
+    process: stricliProcess,
+    forCommand: () =>
+      ({ process: stricliProcess, ...contextData }) as unknown as T,
+  };
+}
+
+/**
  * Application configuration for the root of a CLI app.
  * Used by __root.ts to define app metadata and context builder.
  */
@@ -66,8 +100,8 @@ export interface AppConfig<T extends CommandContext> {
   name?: string;
   /** Current version (defaults to package.json version) */
   version?: string;
-  /** Context builder - creates the custom context for each command */
-  context: () => Omit<T, "process">;
+  /** Context builder - creates the custom context for each command (sync or async) */
+  context: () => Omit<T, "process"> | Promise<Omit<T, "process">>;
 }
 
 /**

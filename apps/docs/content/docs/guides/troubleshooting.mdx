@@ -1,0 +1,396 @@
+---
+title: Troubleshooting
+description: Common issues and how to fix them
+---
+
+# Troubleshooting
+
+Common issues when using Stricli-Kit and how to resolve them.
+
+## Build & Generation Issues
+
+### Command not appearing in CLI
+
+**Symptoms:**
+
+- Command file exists but doesn't show in `cli --help`
+- New command not available after creation
+
+**Causes & Fixes:**
+
+1. **Route map not regenerated**
+
+   ```bash
+   # Regenerate the route map
+   stricli-kit generate
+   # Or in watch mode
+   stricli-kit dev
+   ```
+
+2. **File not exporting `route` or `command`**
+
+   ```typescript
+   // ❌ Missing export
+   const route = defineRoute({ ... });
+
+   // ✅ Correct
+   export const route = defineRoute({ ... });
+   ```
+
+3. **File in wrong directory**
+   Commands must be in the configured `commandsDir` (default: `src/commands`).
+
+4. **File uses wrong extension**
+   Must be `.ts` (or `.lazy.ts` for lazy commands). Files like `.tsx` are ignored.
+
+### "Cannot find module" errors
+
+**Symptoms:**
+
+```
+Error: Cannot find module '../commands/greet.js'
+```
+
+**Causes & Fixes:**
+
+1. **Import prefix mismatch**
+
+   Check your `stricli-kit.jsonc`:
+
+   ```jsonc
+   {
+     "importPrefix": "../commands", // Must match relative path from output to commands
+   }
+   ```
+
+2. **Missing .js extension in imports**
+
+   Generated imports use `.js` extensions for ESM compatibility. Ensure your tsconfig has:
+
+   ```json
+   {
+     "compilerOptions": {
+       "module": "NodeNext",
+       "moduleResolution": "NodeNext"
+     }
+   }
+   ```
+
+3. **Commands directory moved**
+   Update `commandsDir` in `stricli-kit.jsonc` to match new location.
+
+### Type errors in generated files
+
+**Symptoms:**
+
+```
+Type 'X' is not assignable to type 'Y' in route-map.ts
+```
+
+**Causes & Fixes:**
+
+1. **Context type mismatch**
+
+   If using custom context, ensure all commands use the same context type:
+
+   ```typescript
+   // In __root.ts
+   export const context: MyContext = { ... };
+
+   // In command files
+   export const route = defineRoute<..., ..., MyContext>({ ... });
+   ```
+
+2. **Stricli version mismatch**
+
+   Ensure all packages use the same @stricli/core version:
+
+   ```bash
+   bun add @stricli/core@latest
+   ```
+
+## Runtime Issues
+
+### "Unknown command" error
+
+**Symptoms:**
+
+```
+Unknown command: mycommand
+```
+
+**Causes & Fixes:**
+
+1. **Command name doesn't match file name**
+
+   File `my-command.ts` creates command `my-command`, not `myCommand`.
+
+2. **Nested command path incorrect**
+
+   ```bash
+   # ❌ Wrong
+   cli configget
+
+   # ✅ Correct (config/get.ts)
+   cli config get
+   ```
+
+3. **Alias not defined**
+   Add alias in `__root.ts`:
+   ```typescript
+   export const config = {
+     aliases: {
+       mc: "my-command",
+     },
+   };
+   ```
+
+### Flags not being parsed
+
+**Symptoms:**
+
+- Flag values are undefined
+- Boolean flags always false
+
+**Causes & Fixes:**
+
+1. **Using wrong flag syntax**
+
+   ```bash
+   # ❌ Wrong (no equals for parsed flags)
+   cli --count=5
+
+   # ✅ Correct
+   cli --count 5
+   ```
+
+2. **Flag defined as optional without handling**
+
+   ```typescript
+   // ❌ Accessing without checking
+   flags: { name: { kind: "parsed", parse: String, optional: true } }
+   handler: (ctx, { flags }) => {
+     console.log(flags.name.toUpperCase()); // Error if undefined!
+   }
+
+   // ✅ Handle undefined case
+   handler: (ctx, { flags }) => {
+     if (flags.name) {
+       console.log(flags.name.toUpperCase());
+     }
+   }
+   ```
+
+3. **Wrong flag kind**
+
+   ```typescript
+   // ❌ Boolean flags don't take values
+   flags: {
+     verbose: {
+       kind: "boolean";
+     }
+   }
+   // cli --verbose true  <-- "true" becomes positional arg!
+
+   // ✅ Boolean flags are presence-based
+   // cli --verbose
+   ```
+
+### Positional arguments not working
+
+**Symptoms:**
+
+- Arguments are undefined
+- Wrong number of arguments error
+
+**Causes & Fixes:**
+
+1. **Tuple vs Array confusion**
+
+   ```typescript
+   // Tuple: fixed number of typed args
+   positional: {
+     kind: "tuple",
+     parameters: [
+       { brief: "name", parse: String, placeholder: "name" },
+     ],
+   }
+   // cli greet Alice
+
+   // Array: variable number of same-type args
+   positional: {
+     kind: "array",
+     parameter: { brief: "file", parse: String, placeholder: "file" },
+   }
+   // cli process file1.txt file2.txt file3.txt
+   ```
+
+2. **Optional positional must be last**
+
+   ```typescript
+   // ❌ Wrong
+   parameters: [
+     { brief: "a", parse: String, optional: true },
+     { brief: "b", parse: String }, // Required after optional!
+   ];
+
+   // ✅ Correct
+   parameters: [
+     { brief: "b", parse: String },
+     { brief: "a", parse: String, optional: true },
+   ];
+   ```
+
+## Configuration Issues
+
+### Config file not loading
+
+**Symptoms:**
+
+- Config values are defaults despite YAML file existing
+- Environment variables not working
+
+**Causes & Fixes:**
+
+1. **YAML file in wrong location**
+
+   ```typescript
+   const config = createConfigManager({
+     path: "~/.myapp/config.yaml", // Check this path
+   });
+   ```
+
+2. **Environment variable naming**
+
+   Keys are converted to SCREAMING_SNAKE_CASE with prefix:
+
+   ```typescript
+   // Config key: apiUrl with prefix: "MYAPP_"
+   // Environment variable: MYAPP_API_URL (not MYAPP_APIURL)
+   ```
+
+3. **Schema validation failing**
+
+   ```typescript
+   // Enable debug logging
+   const cfg = await config.load();
+   // If undefined, check console for Zod validation errors
+   ```
+
+## Development Mode Issues
+
+### Watch mode not detecting changes
+
+**Symptoms:**
+
+- Edit command file, no regeneration
+- Must manually run `stricli-kit generate`
+
+**Causes & Fixes:**
+
+1. **Editor save delay**
+
+   Some editors batch saves. Try explicit save or increase debounce:
+
+   ```typescript
+   createRouteWatcher({
+     debounceMs: 500, // Increase from default 100ms
+   });
+   ```
+
+2. **File outside watch path**
+
+   Watcher only monitors `commandsDir`. Changes to shared utilities won't trigger.
+
+3. **File system events not propagating**
+   On some systems (WSL, networked drives), file events may not work. Try:
+   ```bash
+   # Use polling instead (slower but more reliable)
+   CHOKIDAR_USEPOLLING=true stricli-kit dev
+   ```
+
+### Hot reload not working
+
+**Symptoms:**
+
+- Changes visible in generated file but CLI still uses old code
+
+**Causes & Fixes:**
+
+This is expected behavior. Node.js caches required modules. You must restart the CLI process to see changes:
+
+```bash
+# Terminal 1: Watch mode
+stricli-kit dev
+
+# Terminal 2: Test changes (restart each time)
+bun run cli greet
+```
+
+## Error Messages
+
+### "defineRoute requires either 'handler' or 'loader'"
+
+Provide either a handler function or a loader for lazy loading:
+
+```typescript
+// ✅ With handler
+export const route = defineRoute({
+  handler: (ctx, params) => { ... },
+  params: { ... },
+  docs: { ... },
+});
+
+// ✅ With loader
+export const route = defineRoute({
+  loader: () => import("./greet.handler.js"),
+  params: { ... },
+  docs: { ... },
+});
+```
+
+### "Parse error for flag X"
+
+The parser function threw an error:
+
+```typescript
+flags: {
+  port: {
+    kind: "parsed",
+    parse: (s) => {
+      const n = Number(s);
+      if (isNaN(n)) throw new Error("Must be a number");
+      if (n < 0 || n > 65535) throw new Error("Must be 0-65535");
+      return n;
+    },
+  },
+}
+```
+
+Check that your input can be parsed.
+
+### "Too many/few positional arguments"
+
+Your command expects a different number of positional arguments:
+
+```bash
+# Command expects 2 args, you provided 1
+cli copy source.txt
+# Error: Missing required argument: destination
+
+# Command expects 2 args, you provided 3
+cli copy source.txt dest.txt extra.txt
+# Error: Too many positional arguments
+```
+
+## Getting Help
+
+If you're still stuck:
+
+1. Check the [GitHub Issues](https://github.com/macalinao/stricli-kit/issues)
+2. Search for similar problems
+3. Open a new issue with:
+   - Stricli-Kit version
+   - Minimal reproduction
+   - Error message (full stack trace)
+   - Expected vs actual behavior

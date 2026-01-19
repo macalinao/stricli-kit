@@ -45,3 +45,6 @@ export {
   type RouteGroupDocs,
   type RouteGroupMeta,
 } from "./define-route-group.js";
+// Parameter shorthand helpers
+export { flag } from "./flag.js";
+export { positional } from "./positional.js";

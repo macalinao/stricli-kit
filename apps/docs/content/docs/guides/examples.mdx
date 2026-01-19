@@ -1,0 +1,572 @@
+---
+title: Example Commands
+description: Real-world command patterns for Stricli-Kit CLIs
+---
+
+# Example Commands
+
+This guide shows real-world patterns for common CLI commands.
+
+## CRUD Operations
+
+### List Command
+
+```typescript
+// src/commands/users/list.ts
+import { defineRoute, flag, positional } from "@macalinao/stricli-define";
+import { createOutput } from "@macalinao/stricli-utils";
+
+export const route = defineRoute({
+  handler: async (ctx, { flags }) => {
+    const output = createOutput(ctx);
+    const users = await fetchUsers({
+      limit: flags.limit,
+      format: flags.format,
+    });
+
+    if (flags.format === "json") {
+      output.json(users);
+    } else {
+      for (const user of users) {
+        ctx.process.stdout.write(`${user.id}\t${user.name}\t${user.email}\n`);
+      }
+    }
+  },
+  params: {
+    flags: {
+      limit: flag.number({ brief: "Max results", default: 10 }),
+      format: flag.enum(["table", "json"] as const, {
+        brief: "Output format",
+        default: "table",
+      }),
+    },
+    positional: positional.none(),
+  },
+  docs: { brief: "List all users" },
+});
+```
+
+### Create Command
+
+```typescript
+// src/commands/users/create.ts
+import { defineRoute, flag, positional } from "@macalinao/stricli-define";
+import { createOutput } from "@macalinao/stricli-utils";
+
+export const route = defineRoute({
+  handler: async (ctx, { flags, args: [name] }) => {
+    const output = createOutput(ctx);
+
+    const user = await createUser({
+      name,
+      email: flags.email,
+      role: flags.role,
+    });
+
+    output.success(`Created user: ${user.id}`);
+
+    if (flags.json) {
+      output.json(user);
+    }
+  },
+  params: {
+    flags: {
+      email: flag.string({ brief: "User email", placeholder: "email" }),
+      role: flag.enum(["admin", "user", "guest"] as const, {
+        brief: "User role",
+        default: "user",
+      }),
+      json: flag.boolean({ brief: "Output as JSON" }),
+    },
+    positional: positional.tuple([
+      positional.string({ brief: "User name", placeholder: "name" }),
+    ]),
+  },
+  docs: { brief: "Create a new user" },
+});
+```
+
+### Delete Command
+
+```typescript
+// src/commands/users/delete.ts
+import { defineRoute, flag, positional } from "@macalinao/stricli-define";
+import { createOutput } from "@macalinao/stricli-utils";
+
+export const route = defineRoute({
+  handler: async (ctx, { flags, args: [userId] }) => {
+    const output = createOutput(ctx);
+
+    if (!flags.force) {
+      // In a real CLI, you'd use an interactive prompt here
+      output.warn(`This will permanently delete user ${userId}`);
+      output.info("Use --force to confirm");
+      return;
+    }
+
+    await deleteUser(userId);
+    output.success(`Deleted user: ${userId}`);
+  },
+  params: {
+    flags: {
+      force: flag.boolean({ brief: "Skip confirmation", aliases: ["-f"] }),
+    },
+    positional: positional.tuple([
+      positional.string({ brief: "User ID", placeholder: "id" }),
+    ]),
+  },
+  docs: { brief: "Delete a user" },
+});
+```
+
+## File Operations
+
+### Process Files
+
+```typescript
+// src/commands/process.ts
+import { defineRoute, flag, positional } from "@macalinao/stricli-define";
+import { createOutput, pathParser } from "@macalinao/stricli-utils";
+import { existsSync, readFileSync, writeFileSync } from "fs";
+
+export const route = defineRoute({
+  handler: async (ctx, { flags, args }) => {
+    const output = createOutput(ctx);
+
+    for (const file of args) {
+      if (flags.verbose) {
+        output.info(`Processing ${file}...`);
+      }
+
+      const content = readFileSync(file, "utf-8");
+      const processed = processContent(content, {
+        format: flags.format,
+        minify: flags.minify,
+      });
+
+      if (flags.output) {
+        writeFileSync(flags.output, processed);
+        output.success(`Wrote output to ${flags.output}`);
+      } else {
+        ctx.process.stdout.write(processed);
+      }
+    }
+  },
+  params: {
+    flags: {
+      format: flag.enum(["json", "yaml", "toml"] as const, {
+        brief: "Output format",
+        default: "json",
+      }),
+      minify: flag.boolean({ brief: "Minify output" }),
+      output: flag.parsed({
+        parse: pathParser(),
+        brief: "Output file",
+        placeholder: "path",
+        optional: true,
+      }),
+      verbose: flag.boolean({ brief: "Verbose output", aliases: ["-v"] }),
+    },
+    positional: positional.array(
+      positional.parsed({
+        parse: pathParser({ mustExist: true, type: "file" }),
+        brief: "Input file",
+        placeholder: "file",
+      }),
+    ),
+  },
+  docs: { brief: "Process files" },
+});
+```
+
+## API Client
+
+### Fetch Data
+
+```typescript
+// src/commands/api/fetch.ts
+import { defineRoute, flag, positional } from "@macalinao/stricli-define";
+import { createOutput, zodParser } from "@macalinao/stricli-utils";
+import { z } from "zod";
+
+const headersSchema = z.record(z.string());
+
+export const route = defineRoute({
+  handler: async (ctx, { flags, args: [endpoint] }) => {
+    const output = createOutput(ctx);
+
+    const url = new URL(endpoint, flags.baseUrl);
+    const headers: Record<string, string> = {
+      "Content-Type": "application/json",
+      ...flags.headers,
+    };
+
+    if (flags.token) {
+      headers.Authorization = `Bearer ${flags.token}`;
+    }
+
+    if (flags.verbose) {
+      output.info(`${flags.method} ${url}`);
+    }
+
+    const response = await fetch(url, {
+      method: flags.method,
+      headers,
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    output.json(data);
+  },
+  params: {
+    flags: {
+      baseUrl: flag.string({
+        brief: "Base URL",
+        default: "https://api.example.com",
+      }),
+      method: flag.enum(["GET", "POST", "PUT", "DELETE"] as const, {
+        brief: "HTTP method",
+        default: "GET",
+      }),
+      token: flag.string({
+        brief: "Auth token",
+        optional: true,
+      }),
+      headers: flag.parsed({
+        parse: zodParser(headersSchema),
+        brief: "Extra headers (JSON)",
+        placeholder: "json",
+        optional: true,
+      }),
+      verbose: flag.boolean({ brief: "Verbose output", aliases: ["-v"] }),
+    },
+    positional: positional.tuple([
+      positional.string({ brief: "API endpoint", placeholder: "endpoint" }),
+    ]),
+  },
+  docs: { brief: "Fetch data from API" },
+});
+```
+
+## Configuration
+
+### Config Get/Set
+
+```typescript
+// src/commands/config/get.ts
+import { defineRoute, positional } from "@macalinao/stricli-define";
+import { createOutput } from "@macalinao/stricli-utils";
+
+export const route = defineRoute({
+  handler: async (ctx, { args: [key] }) => {
+    const output = createOutput(ctx);
+    const config = await loadConfig();
+
+    if (key) {
+      const value = config[key];
+      if (value === undefined) {
+        output.warn(`Config key not found: ${key}`);
+      } else {
+        ctx.process.stdout.write(`${value}\n`);
+      }
+    } else {
+      output.json(config);
+    }
+  },
+  params: {
+    flags: {},
+    positional: positional.tuple([
+      positional.string({
+        brief: "Config key",
+        placeholder: "key",
+        optional: true,
+      }),
+    ]),
+  },
+  docs: { brief: "Get config value" },
+});
+```
+
+```typescript
+// src/commands/config/set.ts
+import { defineRoute, positional } from "@macalinao/stricli-define";
+import { createOutput } from "@macalinao/stricli-utils";
+
+export const route = defineRoute({
+  handler: async (ctx, { args: [key, value] }) => {
+    const output = createOutput(ctx);
+    const config = await loadConfig();
+
+    config[key] = value;
+    await saveConfig(config);
+
+    output.success(`Set ${key} = ${value}`);
+  },
+  params: {
+    flags: {},
+    positional: positional.tuple([
+      positional.string({ brief: "Config key", placeholder: "key" }),
+      positional.string({ brief: "Config value", placeholder: "value" }),
+    ]),
+  },
+  docs: { brief: "Set config value" },
+});
+```
+
+## Build Tool
+
+### Build Command
+
+```typescript
+// src/commands/build.ts
+import { defineRoute, flag, positional } from "@macalinao/stricli-define";
+import { createOutput, pathParser } from "@macalinao/stricli-utils";
+
+export const route = defineRoute({
+  handler: async (ctx, { flags }) => {
+    const output = createOutput(ctx);
+    const startTime = Date.now();
+
+    output.info("Building...");
+
+    const result = await build({
+      outDir: flags.outDir,
+      minify: flags.minify,
+      sourcemap: flags.sourcemap,
+      target: flags.target,
+      watch: flags.watch,
+      onRebuild: (error, result) => {
+        if (error) {
+          output.error(`Build failed: ${error.message}`);
+        } else {
+          output.success("Rebuilt successfully");
+        }
+      },
+    });
+
+    const elapsed = Date.now() - startTime;
+    output.success(`Built in ${elapsed}ms`);
+
+    if (flags.verbose) {
+      output.info(`Output: ${flags.outDir}`);
+      output.info(`Files: ${result.outputFiles.length}`);
+    }
+  },
+  params: {
+    flags: {
+      outDir: flag.parsed({
+        parse: pathParser(),
+        brief: "Output directory",
+        default: "dist",
+      }),
+      minify: flag.boolean({ brief: "Minify output" }),
+      sourcemap: flag.boolean({ brief: "Generate sourcemaps" }),
+      target: flag.enum(["es2020", "es2021", "es2022", "esnext"] as const, {
+        brief: "Target",
+        default: "es2022",
+      }),
+      watch: flag.boolean({ brief: "Watch mode", aliases: ["-w"] }),
+      verbose: flag.boolean({ brief: "Verbose output", aliases: ["-v"] }),
+    },
+    positional: positional.none(),
+  },
+  docs: { brief: "Build the project" },
+});
+```
+
+## Testing/CI
+
+### Test Runner
+
+```typescript
+// src/commands/test.ts
+import { defineRoute, flag, positional } from "@macalinao/stricli-define";
+import { createOutput, globParser } from "@macalinao/stricli-utils";
+
+export const route = defineRoute({
+  handler: async (ctx, { flags, args }) => {
+    const output = createOutput(ctx);
+
+    const testFiles = args.length > 0 ? args : await glob(flags.pattern);
+
+    output.info(`Running ${testFiles.length} test files...`);
+
+    const results = await runTests(testFiles, {
+      coverage: flags.coverage,
+      watch: flags.watch,
+      reporter: flags.reporter,
+      timeout: flags.timeout,
+    });
+
+    if (results.failed > 0) {
+      output.error(`${results.failed} tests failed`);
+      process.exitCode = 1;
+    } else {
+      output.success(`All ${results.passed} tests passed`);
+    }
+  },
+  params: {
+    flags: {
+      pattern: flag.string({
+        brief: "Test file pattern",
+        default: "**/*.test.ts",
+      }),
+      coverage: flag.boolean({ brief: "Collect coverage" }),
+      watch: flag.boolean({ brief: "Watch mode", aliases: ["-w"] }),
+      reporter: flag.enum(["default", "verbose", "json", "junit"] as const, {
+        brief: "Reporter",
+        default: "default",
+      }),
+      timeout: flag.number({ brief: "Test timeout (ms)", default: 5000 }),
+    },
+    positional: positional.array(
+      positional.string({ brief: "Test file", placeholder: "file" }),
+    ),
+  },
+  docs: { brief: "Run tests" },
+});
+```
+
+## Deployment
+
+### Deploy Command
+
+```typescript
+// src/commands/deploy.ts
+import { defineRoute, flag, positional } from "@macalinao/stricli-define";
+import { createOutput } from "@macalinao/stricli-utils";
+
+export const route = defineRoute({
+  handler: async (ctx, { flags, args: [environment] }) => {
+    const output = createOutput(ctx);
+
+    // Validate environment
+    if (environment === "production" && !flags.force) {
+      output.warn("Deploying to production requires --force flag");
+      return;
+    }
+
+    output.info(`Deploying to ${environment}...`);
+
+    // Pre-deploy checks
+    if (!flags.skipTests) {
+      output.info("Running tests...");
+      await runTests();
+    }
+
+    if (!flags.skipBuild) {
+      output.info("Building...");
+      await build();
+    }
+
+    // Deploy
+    const result = await deploy({
+      environment,
+      dryRun: flags.dryRun,
+      tag: flags.tag,
+    });
+
+    if (flags.dryRun) {
+      output.info("Dry run - no changes made");
+      output.json(result.changes);
+    } else {
+      output.success(`Deployed to ${environment}: ${result.url}`);
+    }
+  },
+  params: {
+    flags: {
+      force: flag.boolean({
+        brief: "Force production deploy",
+        aliases: ["-f"],
+      }),
+      dryRun: flag.boolean({ brief: "Dry run (no changes)" }),
+      skipTests: flag.boolean({ brief: "Skip tests" }),
+      skipBuild: flag.boolean({ brief: "Skip build" }),
+      tag: flag.string({ brief: "Version tag", optional: true }),
+    },
+    positional: positional.tuple([
+      positional.string({
+        brief: "Environment",
+        placeholder: "env",
+        default: "staging",
+      }),
+    ]),
+  },
+  docs: { brief: "Deploy the application" },
+});
+```
+
+## Init/Scaffold
+
+### Init Command
+
+```typescript
+// src/commands/init.ts
+import { defineRoute, flag, positional } from "@macalinao/stricli-define";
+import { createOutput, pathParser } from "@macalinao/stricli-utils";
+import { existsSync, mkdirSync, writeFileSync } from "fs";
+
+export const route = defineRoute({
+  handler: async (ctx, { flags, args: [name] }) => {
+    const output = createOutput(ctx);
+    const projectDir = flags.dir || name;
+
+    if (existsSync(projectDir) && !flags.force) {
+      throw new Error(`Directory already exists: ${projectDir}`);
+    }
+
+    output.info(`Creating project: ${name}`);
+
+    // Create directory
+    mkdirSync(projectDir, { recursive: true });
+
+    // Generate files based on template
+    const template = await loadTemplate(flags.template);
+    for (const [path, content] of Object.entries(template.files)) {
+      const fullPath = `${projectDir}/${path}`;
+      const processed = content
+        .replace(/\{\{name\}\}/g, name)
+        .replace(/\{\{author\}\}/g, flags.author || "");
+
+      mkdirSync(fullPath.split("/").slice(0, -1).join("/"), {
+        recursive: true,
+      });
+      writeFileSync(fullPath, processed);
+
+      if (flags.verbose) {
+        output.info(`Created ${path}`);
+      }
+    }
+
+    output.success(`Created project: ${projectDir}`);
+    output.info(`\nNext steps:`);
+    output.info(`  cd ${projectDir}`);
+    output.info(`  bun install`);
+    output.info(`  bun run dev`);
+  },
+  params: {
+    flags: {
+      template: flag.enum(["minimal", "full", "monorepo"] as const, {
+        brief: "Project template",
+        default: "minimal",
+        aliases: ["-t"],
+      }),
+      dir: flag.parsed({
+        parse: pathParser(),
+        brief: "Output directory",
+        optional: true,
+      }),
+      author: flag.string({ brief: "Author name", optional: true }),
+      force: flag.boolean({ brief: "Overwrite existing" }),
+      verbose: flag.boolean({ brief: "Verbose output", aliases: ["-v"] }),
+    },
+    positional: positional.tuple([
+      positional.string({ brief: "Project name", placeholder: "name" }),
+    ]),
+  },
+  docs: { brief: "Initialize a new project" },
+});
+```

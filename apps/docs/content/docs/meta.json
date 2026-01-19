@@ -14,6 +14,11 @@
     "packages/progenitor",
     "---Guides---",
     "guides/file-based-routing",
-    "guides/command-conventions"
+    "guides/command-conventions",
+    "guides/architecture",
+    "guides/examples",
+    "guides/testing",
+    "guides/error-handling",
+    "guides/troubleshooting"
   ]
 }

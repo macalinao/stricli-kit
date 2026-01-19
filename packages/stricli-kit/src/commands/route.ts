@@ -66,9 +66,9 @@ const routeCommandHandler = defineHandler<typeof params>(
       return;
     }
 
-    // Build the file path
-    const routeName = segments.pop()!;
-    const dirSegments = segments;
+    // Build the file path (routeName is guaranteed to exist since segments.length > 0)
+    const routeName = segments.at(-1) ?? "";
+    const dirSegments = segments.slice(0, -1);
     const fileExtension = lazy ? ".lazy.ts" : ".ts";
     const fileName = `${routeName}${fileExtension}`;
 
@@ -96,11 +96,10 @@ const routeCommandHandler = defineHandler<typeof params>(
       output.info(`Created directory: ${routeDir}`);
 
       // Create __route.ts for each new directory
-      for (let i = 0; i < dirSegments.length; i++) {
+      for (const [i, groupName] of dirSegments.entries()) {
         const segmentPath = join(commandsDir, ...dirSegments.slice(0, i + 1));
         const routeConfigPath = join(segmentPath, SPECIAL_FILES.ROUTE_CONFIG);
         if (!existsSync(routeConfigPath)) {
-          const groupName = dirSegments[i]!;
           const template = generateRouteGroupTemplate(groupName, {
             utilsPackage: config.utilsPackage,
           });

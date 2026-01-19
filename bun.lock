@@ -132,10 +132,15 @@
         "@stricli/core": "catalog:",
         "@types/bun": "catalog:",
         "typescript": "catalog:",
+        "zod": "catalog:",
       },
       "peerDependencies": {
         "@stricli/core": "catalog:",
+        "zod": "catalog:",
       },
+      "optionalPeers": [
+        "zod",
+      ],
     },
   },
   "catalog": {

@@ -1,9 +1,10 @@
 {
   "files": [],
   "references": [
-    { "path": "packages/config" },
-    { "path": "packages/utils" },
-    { "path": "packages/codegen" },
+    { "path": "packages/stricli-config" },
+    { "path": "packages/stricli-utils" },
+    { "path": "packages/stricli-codegen" },
+    { "path": "packages/stricli-define" },
     { "path": "packages/stricli-kit" },
     { "path": "packages/progenitor" },
     { "path": "apps/docs" }

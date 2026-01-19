@@ -13,69 +13,354 @@ Shared utilities and helpers for building Stricli CLIs.
 bun add @macalinao/stricli-utils
 ```
 
-## Features
+## Parsers
 
-### Output Helpers
+Ready-to-use parsers for common CLI argument patterns.
 
-Formatted console output with colors:
+### pathParser
+
+Validates file and directory paths with existence checks.
+
+```typescript
+import { pathParser } from "@macalinao/stricli-utils";
+import { defineRoute, flag } from "@macalinao/stricli-define";
+
+export const route = defineRoute({
+  handler: (ctx, { flags }) => {
+    console.log(`Processing: ${flags.input}`);
+  },
+  params: {
+    flags: {
+      // Basic path (no validation)
+      input: flag.parsed({
+        parse: pathParser(),
+        brief: "Input path",
+        placeholder: "path",
+      }),
+
+      // Must exist and be a file
+      config: flag.parsed({
+        parse: pathParser({ mustExist: true, type: "file" }),
+        brief: "Config file",
+        placeholder: "path",
+      }),
+
+      // Must exist and be a directory
+      output: flag.parsed({
+        parse: pathParser({ mustExist: true, type: "directory" }),
+        brief: "Output directory",
+        placeholder: "dir",
+      }),
+    },
+    positional: { kind: "tuple", parameters: [] },
+  },
+  docs: { brief: "Process files" },
+});
+```
+
+**Options:**
+
+| Option      | Type                    | Description                |
+| ----------- | ----------------------- | -------------------------- |
+| `mustExist` | `boolean`               | Require path to exist      |
+| `type`      | `"file" \| "directory"` | Require specific path type |
+
+### choiceParser
+
+Validates input against a fixed set of choices.
+
+```typescript
+import { choiceParser } from "@macalinao/stricli-utils";
+
+const FORMATS = ["json", "yaml", "toml"] as const;
+
+export const route = defineRoute({
+  handler: (ctx, { flags }) => {
+    // flags.format is typed as "json" | "yaml" | "toml"
+    console.log(`Format: ${flags.format}`);
+  },
+  params: {
+    flags: {
+      format: flag.parsed({
+        parse: choiceParser(FORMATS),
+        brief: "Output format",
+        placeholder: "format",
+      }),
+    },
+    positional: { kind: "tuple", parameters: [] },
+  },
+  docs: { brief: "Export" },
+});
+```
+
+### jsonParser
+
+Parses JSON strings into objects.
+
+```typescript
+import { jsonParser } from "@macalinao/stricli-utils";
+
+interface Config {
+  host: string;
+  port: number;
+}
+
+export const route = defineRoute({
+  handler: (ctx, { flags }) => {
+    const config = flags.config as Config;
+    console.log(`${config.host}:${config.port}`);
+  },
+  params: {
+    flags: {
+      config: flag.parsed({
+        parse: jsonParser(),
+        brief: "JSON config",
+        placeholder: "json",
+      }),
+    },
+    positional: { kind: "tuple", parameters: [] },
+  },
+  docs: { brief: "Run" },
+});
+```
+
+**Usage:**
+
+```bash
+cli run --config '{"host": "localhost", "port": 3000}'
+```
+
+### globParser
+
+Validates glob patterns (ensures non-empty).
+
+```typescript
+import { globParser } from "@macalinao/stricli-utils";
+
+export const route = defineRoute({
+  handler: (ctx, { flags }) => {
+    console.log(`Pattern: ${flags.pattern}`);
+  },
+  params: {
+    flags: {
+      pattern: flag.parsed({
+        parse: globParser(),
+        brief: "Glob pattern",
+        placeholder: "pattern",
+      }),
+    },
+    positional: { kind: "tuple", parameters: [] },
+  },
+  docs: { brief: "Match files" },
+});
+```
+
+### zodParser
+
+Parses JSON and validates with a Zod schema. Requires `zod` as a peer dependency.
+
+```typescript
+import { z } from "zod";
+import { zodParser } from "@macalinao/stricli-utils";
+
+const configSchema = z.object({
+  host: z.string(),
+  port: z.number().int().min(0).max(65535),
+});
+
+export const route = defineRoute({
+  handler: (ctx, { flags }) => {
+    // flags.config is fully typed from the schema
+    console.log(`${flags.config.host}:${flags.config.port}`);
+  },
+  params: {
+    flags: {
+      config: flag.parsed({
+        parse: zodParser(configSchema),
+        brief: "JSON config",
+        placeholder: "json",
+      }),
+    },
+    positional: { kind: "tuple", parameters: [] },
+  },
+  docs: { brief: "Connect" },
+});
+```
+
+### zodStringParser
+
+Validates raw string input with a Zod schema.
+
+```typescript
+import { z } from "zod";
+import { zodStringParser } from "@macalinao/stricli-utils";
+
+export const route = defineRoute({
+  handler: (ctx, { flags }) => {
+    console.log(`Email: ${flags.email}`);
+  },
+  params: {
+    flags: {
+      email: flag.parsed({
+        parse: zodStringParser(z.string().email()),
+        brief: "Email",
+        placeholder: "email",
+      }),
+      port: flag.parsed({
+        parse: zodStringParser(z.coerce.number().int().max(65535)),
+        brief: "Port",
+        placeholder: "port",
+      }),
+    },
+    positional: { kind: "tuple", parameters: [] },
+  },
+  docs: { brief: "Server" },
+});
+```
+
+## Output Helpers
+
+Formatted console output with colors and icons.
 
 ```typescript
 import { createOutput } from "@macalinao/stricli-utils";
 
-export const command = buildCommand({
-  func(this, flags) {
-    const output = createOutput(this);
+export const route = defineRoute({
+  handler: (ctx, params) => {
+    const output = createOutput(ctx);
 
-    output.success("Operation completed!");
-    output.error("Something went wrong");
-    output.warn("Proceed with caution");
-    output.info("Processing...");
-    output.json({ key: "value" });
-    output.table([{ name: "foo", value: 1 }]);
+    output.success("Operation completed!"); // ✔ Green
+    output.error("Something went wrong"); // ✖ Red
+    output.warn("Proceed with caution"); // ⚠ Yellow
+    output.info("Processing..."); // ℹ Blue
+    output.json({ key: "value" }); // Formatted JSON
   },
+  // ...
 });
 ```
 
-### Parsers
+| Method    | Color  | Use Case               |
+| --------- | ------ | ---------------------- |
+| `success` | Green  | Successful operations  |
+| `error`   | Red    | Errors and failures    |
+| `warn`    | Yellow | Warnings and cautions  |
+| `info`    | Blue   | Informational messages |
+| `json`    | -      | Structured data output |
 
-Common argument parsers:
+## Extended Context
 
-```typescript
-import { pathParser, choiceParser, jsonParser } from "@macalinao/stricli-utils";
-
-// Path parser with validation
-const filePath = pathParser({ mustExist: true, type: "file" });
-
-// Choice parser for enum values
-const format = choiceParser(["json", "yaml", "toml"] as const);
-
-// JSON parser
-const config = jsonParser<{ key: string }>();
-```
-
-### Extended Context
-
-Enhanced command context:
+Enhanced command context with common properties.
 
 ```typescript
 import { extendContext } from "@macalinao/stricli-utils";
 
-export const command = buildCommand({
-  func(this, flags) {
-    const ctx = extendContext(this);
+export const route = defineRoute({
+  handler: (ctx, params) => {
+    const extended = extendContext(ctx);
 
-    ctx.output.success("Done!");
-    console.log(ctx.cwd); // Current working directory
-    console.log(ctx.env); // Environment variables
+    console.log(extended.cwd); // Current working directory
+    console.log(extended.env.HOME); // Environment variables
+    extended.output.success("Done!");
   },
+  // ...
 });
 ```
 
-## Type Helpers
+| Property | Type                     | Description               |
+| -------- | ------------------------ | ------------------------- |
+| `cwd`    | `string`                 | Current working directory |
+| `env`    | `Record<string, string>` | Environment variables     |
+| `output` | `Output`                 | Output helpers instance   |
+
+## Writing Custom Parsers
+
+Create domain-specific parsers:
 
 ```typescript
-import type { CommandFlags, CommandArgs } from "@macalinao/stricli-utils";
+// Integer with range validation
+function intParser(min?: number, max?: number) {
+  return (value: string): number => {
+    const n = parseInt(value, 10);
+    if (isNaN(n)) throw new Error(`Not a valid integer: ${value}`);
+    if (min !== undefined && n < min) throw new Error(`Must be >= ${min}`);
+    if (max !== undefined && n > max) throw new Error(`Must be <= ${max}`);
+    return n;
+  };
+}
 
-type MyFlags = CommandFlags<typeof myCommand>;
-type MyArgs = CommandArgs<typeof myCommand>;
+// URL parser
+function urlParser() {
+  return (value: string): URL => {
+    try {
+      return new URL(value);
+    } catch {
+      throw new Error(`Invalid URL: ${value}`);
+    }
+  };
+}
+
+// Regex parser
+function regexParser() {
+  return (value: string): RegExp => {
+    try {
+      return new RegExp(value);
+    } catch {
+      throw new Error(`Invalid regex: ${value}`);
+    }
+  };
+}
+```
+
+## Testing Utilities
+
+Helpers for testing CLI commands.
+
+### createTestContext
+
+Create a mock context that captures stdout and stderr.
+
+```typescript
+import { createTestContext } from "@macalinao/stricli-utils";
+
+test("greet command", async () => {
+  const ctx = createTestContext();
+
+  await route.command.func.call(ctx, { verbose: false }, "World");
+
+  expect(ctx.getStdout()).toContain("Hello, World!");
+  expect(ctx.getStderr()).toBe("");
+});
+```
+
+### With custom context
+
+```typescript
+import { createTestContext } from "@macalinao/stricli-utils";
+
+test("command uses config", async () => {
+  const ctx = createTestContext({
+    props: {
+      config: { apiUrl: "https://example.com" },
+    },
+  });
+
+  await route.command.func.call(ctx, {}, "test");
+
+  expect(ctx.getStdout()).toContain("example.com");
+});
+```
+
+### assertOutput
+
+Fluent assertions for output.
+
+```typescript
+import { createTestContext, assertOutput } from "@macalinao/stricli-utils";
+
+test("command output", async () => {
+  const ctx = createTestContext();
+  await route.command.func.call(ctx, {}, "test");
+
+  assertOutput(ctx).stdoutContains("Success").stderrIsEmpty();
+});
 ```

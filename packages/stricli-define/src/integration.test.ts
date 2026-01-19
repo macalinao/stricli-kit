@@ -2217,7 +2217,7 @@ describe("Stricli integration: custom parsers", () => {
   test("custom parser for positional argument", async () => {
     const filePathParser = (input: string): { path: string; ext: string } => {
       const parts = input.split(".");
-      const ext = parts.length > 1 ? parts.pop()! : "";
+      const ext = parts.length > 1 ? (parts.pop() ?? "") : "";
       return { path: input, ext };
     };
 

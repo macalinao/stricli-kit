@@ -1,0 +1,255 @@
+---
+title: Testing Commands
+description: How to write tests for Stricli-Kit CLI commands
+---
+
+# Testing Commands
+
+Stricli-Kit provides testing utilities to help you write tests for your CLI commands.
+
+## Setup
+
+Testing utilities are part of `@macalinao/stricli-utils`:
+
+```bash
+bun add -d @macalinao/stricli-utils
+```
+
+## Basic Testing
+
+Use `createTestContext()` to create a mock context that captures output:
+
+```typescript
+import { describe, test, expect } from "bun:test";
+import { createTestContext } from "@macalinao/stricli-utils";
+import { route } from "./greet";
+
+describe("greet command", () => {
+  test("outputs greeting", async () => {
+    const ctx = createTestContext();
+
+    // Call the command handler directly
+    await route.command.func.call(ctx, { verbose: false }, "World");
+
+    expect(ctx.getStdout()).toContain("Hello, World!");
+  });
+
+  test("verbose mode shows extra output", async () => {
+    const ctx = createTestContext();
+
+    await route.command.func.call(ctx, { verbose: true }, "World");
+
+    expect(ctx.getStdout()).toContain("Greeting World...");
+    expect(ctx.getStdout()).toContain("Hello, World!");
+  });
+});
+```
+
+## Testing with Custom Context
+
+If your commands use a custom context, provide it via `props`:
+
+```typescript
+import { createTestContext } from "@macalinao/stricli-utils";
+import { route } from "./deploy";
+
+interface AppContext {
+  config: {
+    apiUrl: string;
+    apiKey: string;
+  };
+}
+
+test("deploy command uses config", async () => {
+  const ctx = createTestContext<AppContext["config"]>({
+    props: {
+      config: {
+        apiUrl: "https://api.example.com",
+        apiKey: "test-key",
+      },
+    },
+  });
+
+  await route.command.func.call(ctx, {}, "production");
+
+  expect(ctx.getStdout()).toContain("Deploying to api.example.com");
+});
+```
+
+## Testing Error Output
+
+Commands may write errors to stderr:
+
+```typescript
+import { createTestContext } from "@macalinao/stricli-utils";
+import { route } from "./validate";
+
+test("shows error for invalid input", async () => {
+  const ctx = createTestContext();
+
+  await route.command.func.call(ctx, {}, "invalid-file.txt");
+
+  expect(ctx.getStderr()).toContain("Error: File not found");
+});
+```
+
+## Fluent Assertions
+
+Use `assertOutput()` for chainable assertions:
+
+```typescript
+import { createTestContext, assertOutput } from "@macalinao/stricli-utils";
+import { route } from "./process";
+
+test("command output is correct", async () => {
+  const ctx = createTestContext();
+
+  await route.command.func.call(ctx, { format: "json" }, "input.txt");
+
+  assertOutput(ctx)
+    .stdoutContains('{"status":"success"}')
+    .stdoutNotContains("Error")
+    .stderrIsEmpty();
+});
+```
+
+### Available Assertions
+
+| Method              | Description                        |
+| ------------------- | ---------------------------------- |
+| `stdoutContains`    | Assert stdout contains text        |
+| `stdoutNotContains` | Assert stdout doesn't contain text |
+| `stdoutIsEmpty`     | Assert stdout is empty             |
+| `stdoutMatches`     | Assert stdout matches regex        |
+| `stdoutLine`        | Assert specific line content       |
+| `stdoutLineCount`   | Assert number of lines             |
+| `stderrContains`    | Assert stderr contains text        |
+| `stderrNotContains` | Assert stderr doesn't contain text |
+| `stderrIsEmpty`     | Assert stderr is empty             |
+| `stderrMatches`     | Assert stderr matches regex        |
+
+## Testing Line-by-Line Output
+
+For commands with structured output:
+
+```typescript
+import { createTestContext, assertOutput } from "@macalinao/stricli-utils";
+import { route } from "./list";
+
+test("lists items in order", async () => {
+  const ctx = createTestContext();
+
+  await route.command.func.call(ctx, {});
+
+  assertOutput(ctx)
+    .stdoutLine(0, "Item 1")
+    .stdoutLine(1, "Item 2")
+    .stdoutLine(2, "Item 3")
+    .stdoutLineCount(3);
+});
+```
+
+## Testing with Output Helpers
+
+If your command uses `createOutput()`:
+
+```typescript
+import { createTestContext } from "@macalinao/stricli-utils";
+import { route } from "./status";
+
+test("shows success message", async () => {
+  const ctx = createTestContext();
+
+  await route.command.func.call(ctx, {});
+
+  // Output helpers write to stdout
+  expect(ctx.getStdout()).toContain("✔"); // Success icon
+  expect(ctx.getStdout()).toContain("Operation completed");
+});
+
+test("shows error message", async () => {
+  const ctx = createTestContext();
+
+  await route.command.func.call(ctx, { fail: true });
+
+  expect(ctx.getStdout()).toContain("✖"); // Error icon
+});
+```
+
+## Clearing Output Between Tests
+
+If running multiple commands in one test:
+
+```typescript
+import { createTestContext } from "@macalinao/stricli-utils";
+import { route } from "./counter";
+
+test("counter increments", async () => {
+  const ctx = createTestContext();
+
+  await route.command.func.call(ctx, {});
+  expect(ctx.getStdout()).toContain("Count: 1");
+
+  ctx.clearOutput();
+
+  await route.command.func.call(ctx, {});
+  expect(ctx.getStdout()).toContain("Count: 2");
+});
+```
+
+## Testing Async Commands
+
+Async commands work the same way:
+
+```typescript
+import { createTestContext } from "@macalinao/stricli-utils";
+import { route } from "./fetch";
+
+test("fetches data", async () => {
+  const ctx = createTestContext();
+
+  await route.command.func.call(ctx, { url: "https://example.com" });
+
+  expect(ctx.getStdout()).toContain("Fetched successfully");
+});
+```
+
+## Testing Command Errors
+
+Test that commands throw appropriate errors:
+
+```typescript
+import { createTestContext } from "@macalinao/stricli-utils";
+import { route } from "./delete";
+
+test("throws on missing file", async () => {
+  const ctx = createTestContext();
+
+  await expect(
+    route.command.func.call(ctx, {}, "nonexistent.txt"),
+  ).rejects.toThrow("File not found");
+});
+```
+
+## Best Practices
+
+1. **Test behavior, not implementation** - Focus on what the command outputs, not how it does it.
+
+2. **Use descriptive test names** - Make it clear what scenario is being tested.
+
+3. **Test both success and error cases** - Commands should handle errors gracefully.
+
+4. **Keep tests isolated** - Each test should create its own context.
+
+5. **Mock external dependencies** - If commands call APIs or file system, mock those in tests.
+
+```typescript
+// Example: Mocking file system
+import { mock } from "bun:test";
+import * as fs from "fs";
+
+mock.module("fs", () => ({
+  existsSync: () => true,
+  readFileSync: () => '{"key": "value"}',
+}));
+```

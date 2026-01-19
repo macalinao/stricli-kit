@@ -21,13 +21,20 @@
     "@macalinao/stricli-define": "workspace:^"
   },
   "peerDependencies": {
-    "@stricli/core": "catalog:"
+    "@stricli/core": "catalog:",
+    "zod": "catalog:"
+  },
+  "peerDependenciesMeta": {
+    "zod": {
+      "optional": true
+    }
   },
   "devDependencies": {
     "@macalinao/tsconfig": "catalog:",
     "@stricli/core": "catalog:",
     "@types/bun": "catalog:",
-    "typescript": "catalog:"
+    "typescript": "catalog:",
+    "zod": "catalog:"
   },
   "publishConfig": {
     "registry": "https://registry.npmjs.org/",

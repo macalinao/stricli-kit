@@ -1,0 +1,410 @@
+---
+title: Error Handling
+description: Patterns for handling errors in Stricli-Kit CLIs
+---
+
+# Error Handling
+
+This guide covers patterns for handling errors in Stricli-Kit CLI commands.
+
+## Basic Error Handling
+
+The simplest approach is to throw errors directly:
+
+```typescript
+import { defineRoute, flag, positional } from "@macalinao/stricli-define";
+
+export const route = defineRoute({
+  handler: async (ctx, { args: [filePath] }) => {
+    const fs = await import("fs");
+
+    if (!fs.existsSync(filePath)) {
+      throw new Error(`File not found: ${filePath}`);
+    }
+
+    // Process file...
+  },
+  params: {
+    flags: {},
+    positional: positional.tuple([
+      positional.string({ brief: "File path", placeholder: "file" }),
+    ]),
+  },
+  docs: { brief: "Process a file" },
+});
+```
+
+When an error is thrown, Stricli will:
+
+1. Print the error message to stderr
+2. Exit with code 1
+
+## Custom Error Classes
+
+Define custom error classes for better error categorization:
+
+```typescript
+// errors.ts
+export class UserError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "UserError";
+  }
+}
+
+export class ConfigError extends UserError {
+  constructor(message: string) {
+    super(`Configuration error: ${message}`);
+    this.name = "ConfigError";
+  }
+}
+
+export class ValidationError extends UserError {
+  constructor(field: string, message: string) {
+    super(`Validation failed for ${field}: ${message}`);
+    this.name = "ValidationError";
+  }
+}
+
+export class NetworkError extends Error {
+  constructor(
+    message: string,
+    public readonly statusCode?: number,
+  ) {
+    super(message);
+    this.name = "NetworkError";
+  }
+}
+```
+
+Use in commands:
+
+```typescript
+import { defineRoute } from "@macalinao/stricli-define";
+import { ConfigError, ValidationError } from "./errors";
+
+export const route = defineRoute({
+  handler: async (ctx, { flags }) => {
+    if (!flags.apiKey) {
+      throw new ConfigError(
+        "API key is required. Set --api-key or MYAPP_API_KEY",
+      );
+    }
+
+    if (flags.count < 1) {
+      throw new ValidationError("count", "must be at least 1");
+    }
+
+    // Continue...
+  },
+  // ...
+});
+```
+
+## Error Wrapper Pattern
+
+Create a wrapper function to handle common error scenarios:
+
+```typescript
+// error-handler.ts
+import { createOutput } from "@macalinao/stricli-utils";
+import type { CommandContext } from "@stricli/core";
+import { UserError, NetworkError } from "./errors";
+
+export async function withErrorHandling<T>(
+  ctx: CommandContext,
+  fn: () => Promise<T>,
+): Promise<T | undefined> {
+  const output = createOutput(ctx);
+
+  try {
+    return await fn();
+  } catch (error) {
+    if (error instanceof UserError) {
+      // User errors - show clean message, no stack trace
+      output.error(error.message);
+    } else if (error instanceof NetworkError) {
+      // Network errors - show status code if available
+      const status = error.statusCode ? ` (${error.statusCode})` : "";
+      output.error(`Network error${status}: ${error.message}`);
+    } else if (error instanceof Error) {
+      // Unexpected errors - show stack trace in verbose mode
+      output.error(`Unexpected error: ${error.message}`);
+      if (process.env.DEBUG) {
+        console.error(error.stack);
+      }
+    } else {
+      output.error(`Unknown error: ${String(error)}`);
+    }
+
+    // Let Stricli handle the exit code
+    throw error;
+  }
+}
+```
+
+Use in commands:
+
+```typescript
+import { defineRoute } from "@macalinao/stricli-define";
+import { withErrorHandling } from "./error-handler";
+
+export const route = defineRoute({
+  handler: async (ctx, { flags }) => {
+    await withErrorHandling(ctx, async () => {
+      // Your command logic here
+      await fetchData(flags.url);
+    });
+  },
+  // ...
+});
+```
+
+## Exit Codes
+
+Use specific exit codes for different error types:
+
+```typescript
+// exit-codes.ts
+export const ExitCode = {
+  Success: 0,
+  GeneralError: 1,
+  ConfigError: 2,
+  ValidationError: 3,
+  NetworkError: 4,
+  PermissionError: 5,
+} as const;
+
+export type ExitCode = (typeof ExitCode)[keyof typeof ExitCode];
+```
+
+```typescript
+// error-handler.ts
+import { ExitCode } from "./exit-codes";
+
+export class CLIError extends Error {
+  constructor(
+    message: string,
+    public readonly exitCode: number = ExitCode.GeneralError,
+  ) {
+    super(message);
+    this.name = "CLIError";
+  }
+}
+
+export function handleError(error: unknown): never {
+  if (error instanceof CLIError) {
+    console.error(error.message);
+    process.exit(error.exitCode);
+  }
+
+  console.error(error instanceof Error ? error.message : String(error));
+  process.exit(ExitCode.GeneralError);
+}
+```
+
+## Graceful Degradation
+
+Handle errors gracefully with fallbacks:
+
+```typescript
+import { defineRoute } from "@macalinao/stricli-define";
+import { createOutput } from "@macalinao/stricli-utils";
+
+export const route = defineRoute({
+  handler: async (ctx, { flags }) => {
+    const output = createOutput(ctx);
+
+    // Try primary source, fall back to secondary
+    let config;
+    try {
+      config = await loadRemoteConfig(flags.configUrl);
+    } catch (error) {
+      output.warn(`Could not load remote config: ${error}`);
+      output.info("Falling back to local config...");
+      config = await loadLocalConfig();
+    }
+
+    // Continue with config...
+  },
+  // ...
+});
+```
+
+## Validation Before Execution
+
+Validate all inputs before starting expensive operations:
+
+```typescript
+import { defineRoute, flag, positional } from "@macalinao/stricli-define";
+import { createOutput } from "@macalinao/stricli-utils";
+import { existsSync } from "fs";
+
+export const route = defineRoute({
+  handler: async (ctx, { flags, args: [inputFile] }) => {
+    const output = createOutput(ctx);
+    const errors: string[] = [];
+
+    // Collect all validation errors
+    if (!existsSync(inputFile)) {
+      errors.push(`Input file not found: ${inputFile}`);
+    }
+
+    if (flags.outputDir && !existsSync(flags.outputDir)) {
+      errors.push(`Output directory not found: ${flags.outputDir}`);
+    }
+
+    if (flags.workers < 1 || flags.workers > 16) {
+      errors.push("Workers must be between 1 and 16");
+    }
+
+    // Show all errors at once
+    if (errors.length > 0) {
+      for (const error of errors) {
+        output.error(error);
+      }
+      throw new Error(`Validation failed with ${errors.length} error(s)`);
+    }
+
+    // Now proceed with the operation
+    output.info("Starting processing...");
+    // ...
+  },
+  params: {
+    flags: {
+      outputDir: flag.string({ brief: "Output directory", optional: true }),
+      workers: flag.number({ brief: "Number of workers", default: 4 }),
+    },
+    positional: positional.tuple([
+      positional.string({ brief: "Input file", placeholder: "file" }),
+    ]),
+  },
+  docs: { brief: "Process files" },
+});
+```
+
+## Error Recovery with Retries
+
+Implement retry logic for transient errors:
+
+```typescript
+interface RetryOptions {
+  maxRetries?: number;
+  delayMs?: number;
+  backoff?: boolean;
+}
+
+async function withRetry<T>(
+  fn: () => Promise<T>,
+  options: RetryOptions = {},
+): Promise<T> {
+  const { maxRetries = 3, delayMs = 1000, backoff = true } = options;
+
+  let lastError: Error | undefined;
+
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      return await fn();
+    } catch (error) {
+      lastError = error instanceof Error ? error : new Error(String(error));
+
+      if (attempt < maxRetries) {
+        const delay = backoff ? delayMs * Math.pow(2, attempt) : delayMs;
+        await new Promise((resolve) => setTimeout(resolve, delay));
+      }
+    }
+  }
+
+  throw lastError;
+}
+
+// Usage in command
+export const route = defineRoute({
+  handler: async (ctx, { flags }) => {
+    const result = await withRetry(() => fetchFromAPI(flags.endpoint), {
+      maxRetries: 3,
+      backoff: true,
+    });
+
+    console.log(result);
+  },
+  // ...
+});
+```
+
+## Cleanup on Error
+
+Ensure cleanup happens even when errors occur:
+
+```typescript
+import { defineRoute } from "@macalinao/stricli-define";
+import { createOutput } from "@macalinao/stricli-utils";
+
+export const route = defineRoute({
+  handler: async (ctx, { flags }) => {
+    const output = createOutput(ctx);
+    const tempFiles: string[] = [];
+
+    try {
+      // Create temp files
+      tempFiles.push(await createTempFile("input"));
+      tempFiles.push(await createTempFile("output"));
+
+      // Process...
+      await processFiles(tempFiles);
+
+      output.success("Processing complete");
+    } finally {
+      // Always cleanup, even on error
+      for (const file of tempFiles) {
+        try {
+          await unlink(file);
+        } catch {
+          // Ignore cleanup errors
+        }
+      }
+    }
+  },
+  // ...
+});
+```
+
+## Logging Errors
+
+For debugging, log errors with context:
+
+```typescript
+import { defineRoute } from "@macalinao/stricli-define";
+
+export const route = defineRoute({
+  handler: async (ctx, { flags, args }) => {
+    try {
+      await performOperation(flags, args);
+    } catch (error) {
+      // Log with context for debugging
+      console.error("[deploy] Operation failed", {
+        error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
+        flags,
+        args,
+        timestamp: new Date().toISOString(),
+      });
+
+      throw error;
+    }
+  },
+  // ...
+});
+```
+
+## Summary
+
+Key error handling patterns:
+
+1. **Use custom error classes** for better categorization
+2. **Validate inputs early** before expensive operations
+3. **Use error wrappers** for consistent handling
+4. **Define exit codes** for different error types
+5. **Implement retries** for transient errors
+6. **Always cleanup** in finally blocks
+7. **Log context** for debugging

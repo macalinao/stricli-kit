@@ -17,7 +17,7 @@ bun add @macalinao/stricli-define @stricli/core
 
 ## Why stricli-define?
 
-Stricli's default API uses `this` binding and inline definitions:
+Stricli's default API uses `this` binding and verbose inline definitions:
 
 ```typescript
 // Traditional Stricli approach
@@ -35,27 +35,135 @@ const command = buildCommand({
 });
 ```
 
-With stricli-define, you can separate concerns and get better type inference:
+With stricli-define, you get a cleaner API with shorthand helpers:
 
 ```typescript
-// With stricli-define
-const params = defineParameters({
-  flags: {
-    force: { kind: "boolean", brief: "Force", default: false },
+// With stricli-define + shorthand helpers
+import { defineRoute, flag, positional } from "@macalinao/stricli-define";
+
+export const route = defineRoute({
+  handler: (ctx, { flags }) => {
+    if (flags.force) {
+      // flags.force is typed as boolean
+    }
   },
-});
-
-const handler = defineHandler<typeof params>((ctx, { flags }) => {
-  // flags.force is typed as boolean
-  if (flags.force) {
-    // ...
-  }
-});
-
-const route = defineRoute({
-  handler,
-  params,
+  params: {
+    flags: {
+      force: flag.boolean({ brief: "Force operation" }),
+    },
+    positional: positional.none(),
+  },
   docs: { brief: "Do something" },
+});
+```
+
+## Shorthand Helpers
+
+The `flag` and `positional` helpers reduce boilerplate when defining parameters.
+
+### Flag Helpers
+
+```typescript
+import { flag, defineRoute } from "@macalinao/stricli-define";
+
+export const route = defineRoute({
+  handler: (ctx, { flags }) => {
+    console.log(flags);
+  },
+  params: {
+    flags: {
+      // Boolean flag (defaults to false)
+      verbose: flag.boolean({ brief: "Verbose output" }),
+
+      // Counter flag (increments with each use: -vvv = 3)
+      v: flag.counter({ brief: "Verbosity level" }),
+
+      // String flag
+      name: flag.string({ brief: "Name", placeholder: "name" }),
+
+      // String with default
+      host: flag.string({ brief: "Host", default: "localhost" }),
+
+      // Optional string
+      config: flag.string({ brief: "Config file", optional: true }),
+
+      // Number flag
+      port: flag.number({ brief: "Port", default: 3000 }),
+
+      // Enum flag (type-safe choices)
+      format: flag.enum(["json", "yaml", "toml"] as const, {
+        brief: "Output format",
+        default: "json",
+      }),
+
+      // Variadic string (--file a.txt --file b.txt)
+      files: flag.stringArray({ brief: "Files to process" }),
+
+      // Variadic with separator (--tags a,b,c)
+      tags: flag.stringArray({ brief: "Tags", variadic: "," }),
+
+      // Custom parser
+      date: flag.parsed({
+        parse: (s) => new Date(s),
+        brief: "Date",
+        placeholder: "YYYY-MM-DD",
+      }),
+    },
+    positional: { kind: "tuple", parameters: [] },
+  },
+  docs: { brief: "Demo flags" },
+});
+```
+
+### Positional Helpers
+
+```typescript
+import { positional, defineRoute } from "@macalinao/stricli-define";
+
+// Tuple positional (fixed typed arguments)
+export const copyRoute = defineRoute({
+  handler: (ctx, { args: [source, dest] }) => {
+    console.log(`Copying ${source} to ${dest}`);
+  },
+  params: {
+    flags: {},
+    positional: positional.tuple([
+      positional.string({ brief: "Source file", placeholder: "source" }),
+      positional.string({ brief: "Destination", placeholder: "dest" }),
+    ]),
+  },
+  docs: { brief: "Copy a file" },
+});
+
+// Array positional (variable number of same type)
+export const processRoute = defineRoute({
+  handler: (ctx, { args }) => {
+    // args is string[]
+    for (const file of args) {
+      console.log(`Processing ${file}`);
+    }
+  },
+  params: {
+    flags: {},
+    positional: positional.array(
+      positional.string({ brief: "File", placeholder: "file" }),
+    ),
+  },
+  docs: { brief: "Process files" },
+});
+
+// No positional arguments
+export const statusRoute = defineRoute({
+  handler: (ctx, { flags }) => {
+    console.log("Status: OK");
+  },
+  params: {
+    flags: {
+      json: flag.boolean({ brief: "Output as JSON" }),
+    },
+    positional: positional.none(),
+  },
+  docs: { brief: "Show status" },
 });
 ```
 

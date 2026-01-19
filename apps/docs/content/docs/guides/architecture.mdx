@@ -1,0 +1,262 @@
+---
+title: Architecture Overview
+description: How Stricli-Kit's code generation works
+---
+
+# Architecture Overview
+
+This document explains how Stricli-Kit's code generation pipeline works, from scanning command files to generating the route map.
+
+## The Generation Pipeline
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                        Code Generation Flow                         │
+└─────────────────────────────────────────────────────────────────────┘
+
+    src/commands/             Scanner              Generator           Output
+   ┌─────────────┐        ┌───────────┐        ┌───────────┐     ┌─────────────┐
+   │ __root.ts   │──┐     │           │        │           │     │ route-map.ts│
+   │ greet.ts    │──┼────▶│  Scanner  │───────▶│ Generator │────▶│ app.ts      │
+   │ config/     │──┤     │           │        │           │     │ create-     │
+   │   get.ts    │──┘     └───────────┘        └───────────┘     │ file-route  │
+   │   set.ts    │           ▲                      ▲            └─────────────┘
+   └─────────────┘           │                      │
+                             │                      │
+                     File Detection          Code Generation
+                     Convention Matching     Import Collection
+                     Tree Building           Route Map Building
+```
+
+## 1. Scanner Phase
+
+The scanner (`packages/stricli-codegen/src/scanner.ts`) reads your commands directory and builds a tree structure representing your CLI's command hierarchy.
+
+### What the Scanner Does
+
+1. **Walks the directory** recursively starting from `commandsDir`
+2. **Detects file types** using conventions (command, config, lazy handler)
+3. **Builds a route tree** with parent-child relationships
+4. **Returns** an array of `ScannedRoute` objects
+
+### File Detection
+
+The scanner uses naming conventions to identify file types:
+
+| Pattern        | Type               | Example            |
+| -------------- | ------------------ | ------------------ |
+| `*.ts`         | Command file       | `greet.ts`         |
+| `*.lazy.ts`    | Lazy command       | `greet.lazy.ts`    |
+| `*.handler.ts` | Handler companion  | `greet.handler.ts` |
+| `__root.ts`    | Root config        | `__root.ts`        |
+| `__route.ts`   | Route group config | `__route.ts`       |
+| `index.ts`     | Default command    | `config/index.ts`  |
+
+### Scanner Output
+
+```typescript
+interface ScannedRoute {
+  /** Name used in route map (e.g., "greet", "config") */
+  name: string;
+  /** Relative path from commands dir (e.g., "greet.ts", "config/get.ts") */
+  relativePath: string;
+  /** Type of route */
+  type: "command" | "lazy-command" | "route-group" | "root-config";
+  /** Child routes (for directories) */
+  children?: ScannedRoute[];
+  /** Whether this has a __route.ts config */
+  hasRouteConfig?: boolean;
+  /** Lazy handler path if this is a lazy command */
+  handlerPath?: string;
+}
+```
+
+### Example Scan
+
+Given this structure:
+
+```
+src/commands/
+├── __root.ts
+├── greet.ts
+├── build.lazy.ts
+├── build.handler.ts
+└── config/
+    ├── __route.ts
+    ├── get.ts
+    └── set.ts
+```
+
+The scanner produces:
+
+```typescript
+[
+  { name: "greet", type: "command", relativePath: "greet.ts" },
+  {
+    name: "build",
+    type: "lazy-command",
+    relativePath: "build.lazy.ts",
+    handlerPath: "build.handler.ts",
+  },
+  {
+    name: "config",
+    type: "route-group",
+    relativePath: "config",
+    hasRouteConfig: true,
+    children: [
+      { name: "get", type: "command", relativePath: "config/get.ts" },
+      { name: "set", type: "command", relativePath: "config/set.ts" },
+    ],
+  },
+];
+```
+
+## 2. Generator Phase
+
+The generator (`packages/stricli-codegen/src/generator.ts`) takes the scanned routes and produces TypeScript code.
+
+### What the Generator Does
+
+1. **Collects imports** from all routes (commands, configs, handlers)
+2. **Builds route map code** with nested `buildRouteMap` calls
+3. **Generates output files** (route-map.ts, app.ts, create-file-route.ts)
+
+### Import Collection
+
+The generator collects imports by traversing the route tree:
+
+```typescript
+// For a command file "greet.ts":
+import { route as greetRoute } from "../commands/greet.js";
+
+// For a lazy command "build.lazy.ts" + "build.handler.ts":
+import { route as buildRoute } from "../commands/build.lazy.js";
+
+// For a route group config:
+import { config as configRouteConfig } from "../commands/config/__route.js";
+```
+
+### Route Map Generation
+
+The generator builds nested route maps preserving your file structure:
+
+```typescript
+// Input: scanned routes for config/{get,set}.ts
+
+// Output:
+const configRoutes = buildRouteMap({
+  routes: {
+    get: configGetRoute.command,
+    set: configSetRoute.command,
+  },
+  ...configRouteConfig, // spreads docs, aliases, defaultCommand from __route.ts
+});
+
+export const routes = buildRouteMap({
+  routes: {
+    greet: greetRoute.command,
+    build: buildRoute.command,
+    config: configRoutes,
+  },
+  ...rootConfig, // spreads docs, aliases from __root.ts
+});
+```
+
+### Generated Files
+
+The generator produces three files in your output directory:
+
+| File                   | Purpose                          |
+| ---------------------- | -------------------------------- |
+| `route-map.ts`         | The route map with all commands  |
+| `app.ts`               | Application builder with context |
+| `create-file-route.ts` | Helper for creating typed routes |
+
+## 3. Watcher (Dev Mode)
+
+In development, the watcher (`packages/stricli-codegen/src/watcher.ts`) monitors your commands directory for changes.
+
+### How It Works
+
+1. Uses `chokidar` to watch `commandsDir`
+2. Debounces changes (default 100ms) to batch rapid edits
+3. Re-runs the scanner and generator on changes
+4. Calls your `onRegenerate` callback with changed files
+
+```typescript
+const watcher = createRouteWatcher({
+  commandsDir: "src/commands",
+  outputPath: "src/generated/route-map.ts",
+  debounceMs: 100,
+  onRegenerate: (files) => console.log(`Changed: ${files.join(", ")}`),
+});
+
+await watcher.start();
+// ... later
+await watcher.stop();
+```
+
+## Pure Functions for Testing
+
+The generator uses pure functions internally, making it easy to test:
+
+```typescript
+import {
+  collectRouteImports,
+  generateRouteMapCodePure,
+  buildGeneratedFiles,
+} from "@macalinao/stricli-codegen";
+
+// Test import collection
+const imports = collectRouteImports(scannedRoutes, "../commands");
+
+// Test code generation (no file I/O)
+const code = generateRouteMapCodePure(scannedRoutes, imports);
+
+// Test full file generation
+const files = buildGeneratedFiles(scannedRoutes, {
+  importPrefix: "../commands",
+  hasRootConfig: true,
+});
+```
+
+## Configuration
+
+The codegen reads configuration from `stricli-kit.jsonc` in your project root:
+
+```jsonc
+{
+  // Where command files are located
+  "commandsDir": "src/commands",
+
+  // Where to write generated files
+  "output": "src/generated/route-map.ts",
+
+  // Import path prefix in generated code
+  "importPrefix": "../commands",
+}
+```
+
+## Data Flow Summary
+
+```
+┌────────────────┐     ┌────────────────┐     ┌────────────────┐
+│   Your Files   │────▶│   ScannedRoute │────▶│ Generated Code │
+│                │     │      Tree      │     │                │
+│ src/commands/* │     │                │     │ route-map.ts   │
+│                │     │ - type         │     │ app.ts         │
+│ __root.ts      │     │ - name         │     │ create-file-   │
+│ greet.ts       │     │ - children     │     │ route.ts       │
+│ config/get.ts  │     │ - handlerPath  │     │                │
+└────────────────┘     └────────────────┘     └────────────────┘
+        │                      │                      │
+        ▼                      ▼                      ▼
+     Scanner            Pure Functions          Write to Disk
+     (I/O)              (testable)              (I/O)
+```
+
+This separation allows:
+
+- Testing the generation logic without file system mocking
+- Easy debugging by inspecting intermediate representations
+- Potential for alternative output formats in the future

@@ -26,6 +26,8 @@ export {
   jsonParser,
   type PathParserOptions,
   pathParser,
+  zodParser,
+  zodStringParser,
 } from "./parsers/index.js";
 export {
   type CommandDocs,
@@ -36,3 +38,12 @@ export {
   type RouteGroupDocs,
   type RouteGroupMeta,
 } from "./route.js";
+export {
+  assertOutput,
+  type CapturedOutput,
+  createTestContext,
+  OutputAssertions,
+  runCommand,
+  type TestContext,
+  type TestContextOptions,
+} from "./testing.js";

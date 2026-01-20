@@ -43,7 +43,7 @@
     "@macalinao/eslint-config": "catalog:",
     "@macalinao/tsconfig": "catalog:",
     "@types/bun": "catalog:",
-    "eslint": "^9.28.0",
+    "eslint": "^9.39.2",
     "husky": "^9.1.7",
     "lint-staged": "^16.2.7",
     "prettier": "^3.7.4",

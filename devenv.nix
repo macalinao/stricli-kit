@@ -22,7 +22,21 @@
   processes.build-watch.exec = "cd $DEVENV_ROOT && bun build:watch";
   processes.progenitor-dev.exec = "cd $DEVENV_ROOT/packages/progenitor && stricli-kit dev";
 
-  enterShell = ''
-    echo "Welcome to stricli-kit!"
-  '';
+  pre-commit.hooks = {
+    nixfmt.enable = true;
+
+    biome.enable = true;
+
+    prettier = {
+      enable = true;
+      excludes = [
+        "\\.js$"
+        "\\.jsx$"
+        "\\.ts$"
+        "\\.tsx$"
+        "\\.json$"
+        "\\.jsonc$"
+      ];
+    };
+  };
 }

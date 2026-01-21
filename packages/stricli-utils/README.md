@@ -305,10 +305,10 @@ export const route = defineRoute({
 
 | Method    | Color  | Icon | Use Case               |
 | --------- | ------ | ---- | ---------------------- |
-| `success` | Green  | ✔    | Successful operations  |
-| `error`   | Red    | ✖    | Errors and failures    |
-| `warn`    | Yellow | ⚠    | Warnings and cautions  |
-| `info`    | Blue   | ℹ    | Informational messages |
+| `success` | Green  | ✔   | Successful operations  |
+| `error`   | Red    | ✖   | Errors and failures    |
+| `warn`    | Yellow | ⚠   | Warnings and cautions  |
+| `info`    | Blue   | ℹ   | Informational messages |
 | `json`    | -      | -    | Structured data output |
 
 ## Extended Context

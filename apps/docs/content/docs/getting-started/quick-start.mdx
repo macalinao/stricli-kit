@@ -29,34 +29,52 @@ Create command files in `packages/my-cli/src/commands/`:
 
 ```typescript
 // packages/my-cli/src/commands/hello.ts
-import { buildCommand } from "@stricli/core";
+import {
+  defineRoute,
+  defineHandler,
+  defineParameters,
+} from "@macalinao/stricli-utils";
 
-export const command = buildCommand({
-  func(this, flags, name: string) {
-    this.process.stdout.write(`Hello, ${name}!\n`);
+const params = defineParameters({
+  positional: {
+    kind: "tuple",
+    parameters: [
+      { brief: "Name to greet", parse: String, placeholder: "name" },
+    ],
   },
-  parameters: {
-    positional: {
-      kind: "tuple",
-      parameters: [
-        { brief: "Name to greet", parse: String, placeholder: "name" },
-      ],
-    },
-  },
-  docs: {
-    brief: "Say hello to someone",
-  },
+});
+
+const handler = defineHandler<typeof params>(function (ctx, { args: [name] }) {
+  ctx.process.stdout.write(`Hello, ${name}!\n`);
+});
+
+export const route = defineRoute({
+  handler,
+  params,
+  docs: { brief: "Say hello to someone" },
 });
 ```
 
-## 4. Generate Route Map
+## 4. Initialize and Generate Route Map
+
+Initialize the CLI structure and generate the route map:
 
 ```bash
 cd packages/my-cli
-stricli-kit generate
+stricli-kit init
 ```
 
-This creates `src/generated/route-map.ts`.
+This creates:
+
+- `src/commands/__root.ts` - Root configuration with `defineRoot()`
+- `src/commands/index.ts` - Example command
+- `src/generated/route-map.ts` - Generated route map
+
+Alternatively, run just the generate step:
+
+```bash
+stricli-kit generate
+```
 
 ## 5. Create Entry Point
 

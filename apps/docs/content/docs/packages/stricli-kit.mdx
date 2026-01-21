@@ -15,6 +15,26 @@ bun add @macalinao/stricli-kit
 
 ## Commands
 
+### `stricli-kit init`
+
+Initialize a new stricli-kit CLI project in the current directory.
+
+```bash
+stricli-kit init
+stricli-kit init --force
+```
+
+This command:
+
+- Creates a `src/commands` directory
+- Generates a `__root.ts` file with app configuration
+- Creates an example `index.ts` command
+- Generates the initial route map
+
+**Flags:**
+
+- `--force` - Overwrite existing files (default: `false`)
+
 ### `stricli-kit generate`
 
 Generate a route map from your commands directory.
@@ -22,12 +42,16 @@ Generate a route map from your commands directory.
 ```bash
 stricli-kit generate
 stricli-kit generate --commandsDir src/commands --output src/generated/route-map.ts
+stricli-kit generate --repo
 ```
 
 **Flags:**
 
-- `--commandsDir` - Commands directory (default: `src/commands`)
-- `--output` - Output file path (default: `src/generated/route-map.ts`)
+- `--commandsDir` - Commands directory (overrides config)
+- `--output` - Output file path (overrides config)
+- `--config` - Path to stricli-kit.jsonc config file (default: `stricli-kit.jsonc`)
+- `--repo` - Generate for all CLI packages in the repository (default: `false`)
+- `--stub` - Stub empty files with placeholder commands (default: `true`)
 
 ### `stricli-kit dev`
 
@@ -53,6 +77,28 @@ stricli-kit new my-cli --template command
 - `--dir` - Output directory (default: `packages/<name>`)
 - `--scope` - npm scope (default: `@macalinao`)
 
+### `stricli-kit route`
+
+Create a new route/command file. Aliases: `r`, `add`
+
+```bash
+stricli-kit route hello
+stricli-kit route config set
+stricli-kit route config/set
+stricli-kit route greet --lazy
+```
+
+This command:
+
+- Creates the route file in the appropriate location
+- Automatically creates parent directories and `__route.ts` files for nested routes
+- Regenerates the route map (unless `--no-generate` is used)
+
+**Flags:**
+
+- `--lazy` - Create a lazy-loaded route (`.lazy.ts`) (default: `false`)
+- `--no-generate` - Skip route map regeneration (default: `false`)
+
 ### `stricli-kit test`
 
 Run tests via bun test.
@@ -60,7 +106,13 @@ Run tests via bun test.
 ```bash
 stricli-kit test
 stricli-kit test --watch
+stricli-kit test --filter "my-test"
 ```
+
+**Flags:**
+
+- `--watch` - Watch mode (default: `false`)
+- `--filter` - Filter tests by pattern
 
 ### `stricli-kit lint`
 

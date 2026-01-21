@@ -9,11 +9,12 @@ stricli-kit/
 ├── apps/
 │   └── docs/                   # Fumadocs documentation site
 ├── packages/
-│   ├── config/                 # YAML/env config management
-│   ├── codegen/                # Route map code generation
-│   ├── core/                   # Shared CLI utilities
-│   ├── progenitor/             # Demo CLI - scaffold packages/workspaces
-│   └── stricli-kit/            # Main CLI toolkit
+│   ├── stricli-config/         # YAML/env config management
+│   ├── stricli-codegen/        # Route map code generation
+│   ├── stricli-define/         # Type-safe route definitions
+│   ├── stricli-utils/          # Shared CLI utilities
+│   ├── stricli-kit/            # Main CLI toolkit
+│   └── progenitor/             # Demo CLI - scaffold packages/workspaces
 ├── biome.jsonc                 # Extends @macalinao/biome-config/base
 ├── eslint.config.js            # Uses @macalinao/eslint-config
 ├── turbo.json                  # Turborepo configuration
@@ -31,13 +32,14 @@ bun run test      # Run tests
 
 ## Packages
 
-| Package                    | Description                   |
-| -------------------------- | ----------------------------- |
-| @macalinao/stricli-kit     | Main CLI for codegen          |
-| @macalinao/stricli-codegen | Route map generation library  |
-| @macalinao/stricli-utils   | Shared CLI utilities          |
-| @macalinao/stricli-config  | YAML + env config management  |
-| @macalinao/progenitor      | Package/workspace scaffolding |
+| Package                    | Description                    |
+| -------------------------- | ------------------------------ |
+| @macalinao/stricli-kit     | Main CLI for codegen           |
+| @macalinao/stricli-codegen | Route map generation library   |
+| @macalinao/stricli-define  | Type-safe route definitions    |
+| @macalinao/stricli-utils   | Shared CLI utilities & parsers |
+| @macalinao/stricli-config  | YAML + env config management   |
+| @macalinao/progenitor      | Package/workspace scaffolding  |
 
 ## Key Concepts
 

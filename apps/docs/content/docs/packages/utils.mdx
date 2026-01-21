@@ -13,6 +13,87 @@ Shared utilities and helpers for building Stricli CLIs.
 bun add @macalinao/stricli-utils
 ```
 
+## Root Configuration
+
+### defineRoot
+
+The recommended way to configure your CLI application. Combines app metadata, context creation, and route configuration into a single call.
+
+```typescript
+// src/commands/__root.ts
+import { defineRoot } from "@macalinao/stricli-utils";
+
+// Simple usage (no custom context)
+export const root = defineRoot({
+  brief: "My CLI tool",
+});
+
+export type AppContext = typeof root.Context;
+```
+
+**With custom context:**
+
+```typescript
+import { defineRoot } from "@macalinao/stricli-utils";
+
+export const root = defineRoot({
+  brief: "My CLI tool",
+  name: "my-cli",
+  version: "1.0.0",
+  createContext: () => ({
+    cwd: process.cwd(),
+    config: loadConfig(),
+  }),
+  aliases: { pkg: "package" },
+  defaultCommand: "help",
+});
+
+export type AppContext = typeof root.Context;
+```
+
+**With async context:**
+
+```typescript
+import { defineRoot } from "@macalinao/stricli-utils";
+
+export const root = defineRoot({
+  brief: "My CLI tool",
+  createContext: async () => {
+    const config = await readConfigFile();
+    return { config, cwd: process.cwd() };
+  },
+});
+
+export type AppContext = typeof root.Context;
+```
+
+**Options:**
+
+| Option           | Type                      | Description                                      |
+| ---------------- | ------------------------- | ------------------------------------------------ |
+| `brief`          | `string`                  | Application description (required)               |
+| `name`           | `string`                  | Application name (defaults to package.json name) |
+| `version`        | `string`                  | Current version (defaults to package.json)       |
+| `createContext`  | `() => T \| Promise<T>`   | Context factory for custom context               |
+| `aliases`        | `Record<string, string>`  | Route aliases (e.g., `{ pkg: "package" }`)       |
+| `defaultCommand` | `string`                  | Default command when none specified              |
+| `hideRoute`      | `Record<string, boolean>` | Hide specific routes from help                   |
+
+## Route Definitions
+
+This package re-exports route definition functions from `@macalinao/stricli-define`:
+
+```typescript
+import {
+  defineRoute,
+  defineRouteGroup,
+  defineHandler,
+  defineParameters,
+} from "@macalinao/stricli-utils";
+```
+
+See the [@macalinao/stricli-define documentation](/docs/packages/define) for full details on these functions.
+
 ## Parsers
 
 Ready-to-use parsers for common CLI argument patterns.

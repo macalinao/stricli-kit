@@ -29,14 +29,7 @@
 
     prettier = {
       enable = true;
-      excludes = [
-        "\\.js$"
-        "\\.jsx$"
-        "\\.ts$"
-        "\\.tsx$"
-        "\\.json$"
-        "\\.jsonc$"
-      ];
+      files = "\\.(md|mdx|yaml|yml|graphql)$";
     };
   };
 }
